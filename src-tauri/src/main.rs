@@ -3,11 +3,33 @@
 
 mod tracker;
 mod db;
+mod windows;
+mod os_utils;
 
 
+use sqlx::{Pool, Sqlite};
 use tauri::{Emitter, Manager};
 use tokio::time::{sleep, Duration};
-
+// use crate::windows::get_process;
+// async fn linux_tracking_loop(
+//     pool: &Pool<Sqlite>,
+//     last_process: String,
+//     last_title: String,
+// ) -> (String, String) {
+//     if let Some(window) = tracker::get_kde_active_window().await {
+//         if window.process_name != last_process  || window.title != last_title {
+//             println!("Switch! {} -> {}", last_process, window.process_name);
+//
+//             if let Err(e) = db::log_switch(&pool, &window.process_name, &window.title).await {
+//                 eprintln!("DB Error: {}", e);
+//             }
+//
+//             let _ = handle.emit("activity_change", &window);
+//
+//             (window.process_name, window.title)
+//         }
+//     }
+// }
 
 fn main() {
     tauri::Builder::default()
@@ -21,20 +43,8 @@ fn main() {
                 let mut last_title = String::new();
 
                 loop {
-                    if let Some(window) = tracker::get_kde_active_window().await {
-                        if window.process_name != last_process  || window.title != last_title {
-                            println!("Switch! {} -> {}", last_process, window.process_name);
-
-                            if let Err(e) = db::log_switch(&pool, &window.process_name, &window.title).await {
-                                eprintln!("DB Error: {}", e);
-                            }
-
-                            let _ = handle.emit("activity_change", &window);
-
-                            last_process = window.process_name;
-                            last_title = window.title;
-                        }
-                    }
+                    // last_process, last_title = linux_tracking_loop(pool, last_process, last_title).await;
+                    get_process();
                     sleep(Duration::from_secs(1)).await;
                 }
             });

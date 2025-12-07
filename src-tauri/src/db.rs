@@ -1,30 +1,49 @@
-use sqlx::{query, sqlite::SqlitePoolOptions, Pool, Row, Sqlite};
-use std::fs::File;
-use std::path::Path;
-use chrono;
+use sqlx::{
+    Pool, Sqlite,
+    sqlite::{ SqliteConnectOptions, SqlitePoolOptions, SqliteJournalMode},
+};
 
-pub async fn init_db() -> Result<Pool<Sqlite>, sqlx::Error> {
-    if !Path::new("tracker.db").exists() {
-        File::create("tracker.db")?;
-    }
+use std::{
+    fs::{File},
+    path::Path,
+    str::FromStr,
+    time::Duration,
+};
+use tokio::sync::OnceCell;
+use chrono::{Utc};
 
-    let pool = SqlitePoolOptions::new()
-        .connect("sqlite://tracker.db")
-        .await?;
+pub static DB_CONN: OnceCell<Pool<Sqlite>> = OnceCell::const_new();
 
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS activity_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                process_name TEXT NOT NULL,
-                window_title TEXT NOT NULL,
-                start_time TEXT NOT NULL,
-                temp_end_time TEXT NOT NULL,
-                end_time TEXT
-                )",
-    ).execute(&pool).await?;
+pub async fn init_db() -> Pool<Sqlite> {
+    let db_url = "sqlite://tracker.db";
 
-    Ok(pool)
+    DB_CONN
+        .get_or_init(|| async {
+
+            let options = SqliteConnectOptions::from_str(db_url)
+                .unwrap()
+                .create_if_missing(true)
+                .journal_mode(SqliteJournalMode::Delete);
+
+            let pool = SqlitePoolOptions::new()
+                .max_connections(20)
+                .idle_timeout(Duration::from_secs(60))
+                .acquire_timeout(Duration::from_secs(5))
+                .connect_with(options)
+                .await
+                .expect("Failed to create db pool");
+
+            sqlx::migrate!("./migrations")
+                .run(&pool)
+                .await
+                .expect("Failed to run migrations");
+
+            pool
+        })
+        .await
+        .clone()
 }
+
 /// Intended as a failsafe in case of sudden (and, in fact, any) shutdowns by periodically storing time in temp value
 // this can then be used as an end time, if it doesn't exist
 ///
@@ -45,18 +64,23 @@ pub async fn sync_fallback(pool: &Pool<Sqlite>) -> Result<bool, sqlx::Error> {
     Ok(true)
 }
 
-pub async fn log_switch(pool: &Pool<Sqlite>, process_name: &str, title: &str) -> Result<(), sqlx::Error> {
-    let now = chrono::Local::now().to_rfc3339();
+pub async fn log_switch(process_name: &str, title: &str) -> Result<(), sqlx::Error> {
+    let now = Utc::now();
+
+    let pool = match DB_CONN.get() {
+        Some(p) => p,
+        None => init_db()
+    };
 
     sqlx::query("UPDATE activity_log SET end_time = ? WHERE end_time IS NULL")
-        .bind(&now)
+        .bind(now)
         .execute(pool)
         .await?;
 
     sqlx::query("INSERT INTO activity_log (process_name, window_title, start_time) VALUES (?, ?, ?)")
         .bind(process_name)
         .bind(title)
-        .bind(&now)
+        .bind(now)
         .execute(pool)
         .await?;
 
