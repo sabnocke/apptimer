@@ -6,7 +6,7 @@ use std::sync::Arc;
 use sqlx::{Pool, Sqlite};
 use tauri::{AppHandle};
 
-use crate::db;
+use build_script_build::db;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct WindowInfo {
@@ -67,15 +67,15 @@ static POOL: LazyLock<Pool<Sqlite>> = LazyLock::new(|| {
 
 
 pub fn get_process_info(handle: &AppHandle) -> (String, String) {
-    let last_name: Arc<String> = LAST_NAME.load();
-    let last_title: Arc<String> = LAST_TITLE.load();
+    let last_name = LAST_NAME.load();
+    let last_title = LAST_TITLE.load();
 
 
     if let Some(window) = get_kde_active_window().await {
         if **last_name != window.process_name || **last_title != window.title {
             println!("Switch! {} -> {}", last_process, window.process_name);
 
-            if let Err(e) = db::log_switch(&POOL, &window.process_name, &window.title).await {
+            if let Err(e) = db::log_switch(&window.process_name, &window.title).await {
                 eprintln!("DB Error: {}", e);
             }
             

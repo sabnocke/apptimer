@@ -1,7 +1,6 @@
 use std::sync::{LazyLock, OnceLock};
 use arc_swap::ArcSwap;
 use sqlx::{Pool, Sqlite};
-use crate::db;
 
 static LAST_NAME: LazyLock<ArcSwap<String>> = LazyLock::new(|| {
     ArcSwap::from_pointee(String::new())

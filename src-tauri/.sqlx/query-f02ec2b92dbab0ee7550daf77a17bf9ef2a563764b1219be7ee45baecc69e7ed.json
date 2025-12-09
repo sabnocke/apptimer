@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT id, process_name, window_title, \n            start_time as \"start_time: chrono::DateTime<chrono::Utc>\",\n            temp_end_time as \"temp_end_time: chrono::DateTime<chrono::Utc>\",\n            end_time as \"end_time!: chrono::DateTime<chrono::Utc>\"\n        FROM activity_log\n        WHERE start_time >= ? AND end_time <= ?\n        ORDER BY start_time, end_time DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "process_name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "window_title",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "start_time: chrono::DateTime<chrono::Utc>",
+        "ordinal": 3,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "temp_end_time: chrono::DateTime<chrono::Utc>",
+        "ordinal": 4,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "end_time!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 5,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "f02ec2b92dbab0ee7550daf77a17bf9ef2a563764b1219be7ee45baecc69e7ed"
+}

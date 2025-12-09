@@ -1,13 +1,14 @@
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, Arc};
 use windows::{
     Win32::UI::WindowsAndMessaging::{
         GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId, GetWindowTextLengthW
     },
 };
-use tauri::{AppHandle};
+use tauri::{AppHandle, Emitter};
 
-use sysinfo::{System, Pid, Process, RefreshKind, ProcessRefreshKind, ProcessesToUpdate};
-
+use sysinfo::{System, Pid, RefreshKind, ProcessRefreshKind, ProcessesToUpdate};
+use crate::db::{DB_CONN, log_switch};
+use super::{LAST_NAME, LAST_TITLE};
 static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| {
     let settings = RefreshKind::default()
         .with_processes(ProcessRefreshKind::default());
@@ -15,17 +16,29 @@ static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| {
     Mutex::new(System::new_with_specifics(settings))
 });
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct WindowInfo {
     pub pid: u32,
     pub window_title: String,
     pub process_name: String,
 }
 
-pub fn get_active_window() -> Option<WindowInfo> {
+impl WindowInfo {
+    pub fn is_empty(&self) -> bool {
+        self.window_title.is_empty() && self.process_name.is_empty() && self.pid == 0
+    }
+}
+
+const EMPTY_WINDOW_INFO: WindowInfo = WindowInfo {
+    pid: 0,
+    window_title: String::new(),
+    process_name: String::new(),
+};
+
+pub fn get_active_window() -> WindowInfo {
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd.0 == std::ptr::null_mut() {return None;}
+        if hwnd.0 == std::ptr::null_mut() {return EMPTY_WINDOW_INFO;}
 
         let mut pid: u32 = 0;
         GetWindowThreadProcessId(hwnd, Some(&mut pid));
@@ -49,36 +62,57 @@ pub fn get_active_window() -> Option<WindowInfo> {
             }
         };
 
-        Some(WindowInfo {
+        WindowInfo {
             pid,
             window_title,
             process_name,
-        })
+        }
     }
 }
 
-fn format_name<'a>(window_name: &'a str, process_name: &'a str) -> &'a str {
-    if process_name.eq("ApplicationFrameHost.exe") {
-        return window_name;
-    }
+// fn format_name<'a>(window_name: &'a str, process_name: &'a str) -> &'a str {
+//     if process_name.eq("ApplicationFrameHost.exe") {
+//         return window_name;
+//     }
+//
+//     process_name
+// }
 
-    process_name
-}
 
+pub async fn get_process_info(handle: &AppHandle) {
+    let last_name = LAST_NAME.load();
+    let last_title = LAST_TITLE.load();
 
-pub fn get_process_info(handle: &AppHandle) {
-    let sys = System::new_all();
-    let (window_pid, window_title) = get_active_window();
+    let wi = get_active_window();
 
-    if window_pid == 0 {
-        // idle process
+    if wi.pid == 0 || wi.is_empty() {
         return;
     }
 
-    let process = sys.processes().get(&Pid::from_u32(window_pid));
 
-    if let Some(process) = process {
-        let name = format_name(window_title.as_str(), <&str>::try_from(process.name()).unwrap());
-        println!("active process: {}", name);
+    // let process = sys.processes().get(&Pid::from_u32(un_wi.pid));
+
+    if wi.process_name != **last_name || wi.window_title != **last_title {
+        println!("Switch! {} -> {}", last_name, wi.process_name);
+        // if let Err(e) = log_switch(&wi.process_name, &wi.window_title).await {
+        //     eprintln!("DB Error: {}", e);
+        //     ()
+        // }
+
+        match log_switch(&wi.process_name, &wi.window_title).await {
+            Ok(entries) => {
+                let updates = vec![entries.0, entries.1];
+                println!("entry: {}", updates[0]);
+                let _ = handle.emit("activity_change", updates);
+            }
+            Err(e) => {
+                eprintln!("DB Error: {}", e);
+            }
+        }
+
+        // let _ = handle.emit("activity_change", &wi);
+
+        LAST_TITLE.store(Arc::new(wi.window_title.clone()));
+        LAST_NAME.store(Arc::new(wi.process_name.clone()));
     }
 }
