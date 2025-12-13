@@ -1,12 +1,10 @@
 use tokio::process::Command;
-use std::sync::Mutex;
-use std::sync::LazyLock;
-use arc_swap::ArcSwap;
 use std::sync::Arc;
-use sqlx::{Pool, Sqlite};
-use tauri::{AppHandle};
+use tauri::{AppHandle, Emitter};
 
-use build_script_build::db;
+use crate::db;
+use crate::db::log_switch;
+use super::{LAST_NAME, LAST_TITLE};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct WindowInfo {
@@ -54,37 +52,46 @@ pub async fn get_kde_active_window() -> Option<WindowInfo> {
     Some(WindowInfo { process_name: process, title })
 }
 
-static LAST_NAME: LazyLock<ArcSwap<String>> = LazyLock::new(|| {
+/*static LAST_NAME: LazyLock<ArcSwap<String>> = LazyLock::new(|| {
     ArcSwap::from_pointee(String::new());
 });
 
 static LAST_TITLE: LazyLock<ArcSwap<String>> = LazyLock::new(|| {
-    ArcSwap::from_pointee(String::new());
+    ArcSwap::from_pointee(String::new())
 });
 static POOL: LazyLock<Pool<Sqlite>> = LazyLock::new(|| {
     db::init_db().await.expect("failed to init db");
-});
+});*/
 
 
-pub fn get_process_info(handle: &AppHandle) -> (String, String) {
+pub async fn get_process_info(handle: &AppHandle) {
     let last_name = LAST_NAME.load();
     let last_title = LAST_TITLE.load();
+
+    let default = (String::default(), String::default());
 
 
     if let Some(window) = get_kde_active_window().await {
         if **last_name != window.process_name || **last_title != window.title {
-            println!("Switch! {} -> {}", last_process, window.process_name);
+            println!("Switch! {} -> {}", last_name, window.process_name);
 
-            if let Err(e) = db::log_switch(&window.process_name, &window.title).await {
+            match log_switch(&window.process_name, &window.title).await {
+                Ok(entries) => {
+                    let updates = vec![entries.0, entries.1];
+                    let _ = handle.emit("activity_change", updates);
+                }
+                Err(e) => println!("Error: {}", e),
+            }
+
+            /*if let Err(e) = db::log_switch(&window.process_name, &window.title).await {
                 eprintln!("DB Error: {}", e);
             }
             
-            let _ = handle.emit("activity_change", &window);
+            let _ = handle.emit("activity_change", &window);*/
             
             
-            LAST_NAME.store(Arc::new(window.process_name), std::sync::atomic::Ordering::Relaxed);
-            LAST_TITLE.store(Arc::new(window.title), std::sync::atomic::Ordering::Relaxed);
-            (window.process_name, window.title)
+            LAST_NAME.store(Arc::new(window.process_name));
+            LAST_TITLE.store(Arc::new(window.title));
         }
     }
 }

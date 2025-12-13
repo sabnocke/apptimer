@@ -1,5 +1,6 @@
 <script lang="ts">
   import Listing from "./listing.svelte";
+  import LargerListing from "$lib/largerListing.svelte";
 
   interface Props {
     minTopRowHeight: number,
@@ -7,13 +8,14 @@
   }
 
   let {
-    minTopRowHeight = 100,
-    minLeftColWidth = 100
+    minTopRowHeight = 300,
+    minLeftColWidth = 450
   }: Props = $props();
 
   let isResizingVertical = $state(false);
   let isResizingHorizontal = $state(false);
 
+  let lowerRowRightHeight = $state(0);
 
   const DEFAULT = {} as HTMLDivElement;
 
@@ -65,29 +67,29 @@
 
 </script>
 
-<div id="griding" bind:this={centralContainer}>
-  <div id="topRow" bind:this={topRow}>
+<div class="grids" bind:this={centralContainer}>
+  <div class="topRow" bind:this={topRow}>
     div1
   </div>
-  <div id="td-resizer">
-    <button title="clickable-td-resizer" id="btn-td-resizer"
+  <div class="td-resizer">
+    <button title="clickable-td-resizer" class="btn-td-resizer"
             onmousedown={() => isResizingHorizontal = true}
             ondblclick={resetTopRow}
     ></button>
   </div>
-  <div id="bottomRow">
-    <div id="left" bind:this={leftCol}>
-      div2
-    </div>
-    <div id="lr-resizer">
-      <button title="clickable-lr-resizer" id="btn-lr-resizer"
+  <div class="bottomRow">
+    <div class="left" bind:this={leftCol}>
+      <LargerListing />
+    </div> <!-- left -->
+    <div class="lr-resizer">
+      <button title="clickable-lr-resizer" class="btn-lr-resizer"
               onmousedown={() => isResizingVertical = true}
               ondblclick={resetLeftCol}
       ></button>
-    </div>
-    <div id="right">
+    </div> <!-- resizer -->
+    <div class="right">
       <Listing />
-    </div>
+    </div> <!-- right -->
   </div>
 </div>
 
@@ -95,12 +97,17 @@
 <style lang="scss">
   @use "sass:color";
 
+  :global(body) {
+    padding: 0;
+    margin: 0;
+  }
+
   :root {
     --left-col-width: 1fr;
     --top-row-height: 1fr;
   }
 
-  #griding {
+  .grids {
     display: grid;
     grid-template-rows: var(--top-row-height) 1rem 1fr;
     width: 100%;
@@ -109,7 +116,7 @@
 
   $btn-offset: 0.5rem;
 
-  #td-resizer {
+  .td-resizer {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -119,7 +126,7 @@
     padding-right: $btn-offset;
   }
 
-  #lr-resizer {
+  .lr-resizer {
     display: flex;
     flex-direction: row;
     justify-content: center;
@@ -131,7 +138,7 @@
 
   $btn-bg-color: #818589;
 
-  #btn-td-resizer {
+  .btn-td-resizer {
     width: 100%;
     height: 0.75rem;
     background-color: $btn-bg-color;
@@ -145,7 +152,7 @@
     }
   }
 
-  #btn-lr-resizer {
+  .btn-lr-resizer {
     height: 100%;
     width: 0.75rem;
     background-color: $btn-bg-color;
@@ -159,19 +166,28 @@
     }
   }
 
-  #topRow {
+  .topRow {
     background-color: rgba(26, 186, 63, 0.5);
   }
 
-  #left {
+  .left {
     background-color: rgba(62, 188, 197, 0.5);
   }
 
-  #right {
+  .right {
     background-color: rgba(32, 10, 154, 0.5);
+    padding-top: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    height: 100%;
+    min-height: 0;
   }
 
-  #bottomRow {
+  .bottomRow {
     display: grid;
     grid-template-columns: var(--left-col-width) 1rem 1fr;
   }

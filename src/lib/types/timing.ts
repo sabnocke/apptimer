@@ -1,4 +1,5 @@
 import {Temporal} from "@js-temporal/polyfill";
+import Instant = Temporal.Instant;
 
 
 export class Timing {
@@ -7,8 +8,8 @@ export class Timing {
   public minutes: number = 0;
   public seconds: number = 0;
 
-  private start: Temporal.Instant
-  private end: Temporal.Instant
+  start: Temporal.Instant
+  end: Temporal.Instant
 
   private created_empty: boolean = false;
 
@@ -23,6 +24,16 @@ export class Timing {
   static empty() {
     const t = new Timing(new Date(), new Date()).annul()
     t.created_empty = true;
+    return t;
+  }
+
+  static from_instant(start: Instant, end: Instant) {
+    const t = Timing.empty();
+    t.start = start;
+    t.end = end;
+    const seconds = Math.abs(t.end.until(t.start).total("seconds"));
+    t.secondsToFull(seconds);
+
     return t;
   }
 
@@ -112,5 +123,16 @@ export class Timing {
 
   public reformat() {
     return this.resync().format();
+  }
+
+  public cmp(other: Timing, method: "start" | "end"): number {
+    // if this is after other => positive
+    // if this is before other => negative
+    switch (method) {
+      case "start":
+        return Math.sign(other.start.until(this.start).total("seconds"));
+      case "end":
+        return Math.sign(other.end.until(this.end).total("seconds"));
+    }
   }
 }

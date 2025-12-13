@@ -6,10 +6,32 @@ use sqlx::{
 use crate::commands::LogEntry;
 use chrono::{Utc, DateTime};
 use std::{str::FromStr, time::Duration};
+use std::future::Future;
+use std::pin::Pin;
 use tauri::AppHandle;
 use tokio::sync::OnceCell;
 
 pub static DB_CONN: OnceCell<Pool<Sqlite>> = OnceCell::const_new();
+
+#[cfg(target_os = "windows")]
+fn get_migrate(pool: &Pool<Sqlite>) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send> {
+    Box::new(move || {
+        let pool = pool.clone();
+        Box::pin(async move {
+            sqlx::migrate!(".\\migrations").run(&pool).await.expect("Migration failed");
+        })
+    })
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_migrate(pool: &Pool<Sqlite>) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + '_> {
+    Box::new(move || {
+        let pool = pool.clone();
+        Box::pin(async move {
+            sqlx::migrate!("./migrations").run(&pool).await.expect("Migration failed");
+        })
+    })
+}
 
 pub async fn init_db() -> Pool<Sqlite> {
     let db_url = "sqlite://tracker.db";
@@ -29,10 +51,7 @@ pub async fn init_db() -> Pool<Sqlite> {
                 .await
                 .expect("Failed to create db pool");
 
-            sqlx::migrate!(".\\migrations")
-                .run(&pool)
-                .await
-                .expect("Failed to run migrations");
+            get_migrate(&pool)().await;
 
             pool
         })
@@ -52,11 +71,6 @@ pub async fn init_db() -> Pool<Sqlite> {
 pub async fn sync_fallback(/*handle: AppHandle*/) -> Result<LogEntry, String> {
     let now = Utc::now();
     let pool = DB_CONN.get_or_init(|| async { init_db().await }).await;
-
-    /*sqlx::query("UPDATE activity_log SET temp_end_time = ? WHERE end_time IS NULL")
-    .bind(now)
-    .execute(pool)
-    .await?;*/
 
     let updated_entry = sqlx::query_as!(
         LogEntry,

@@ -1,19 +1,21 @@
 <script lang="ts">
-  import {EMPTY_LOG, fetchData, type LogEntry} from "$lib/services/dataProvider.svelte"
+  //TODO currently making ^right too small and going fullscreen -> windowed will remove the ^right from view entirely
+
+  import {EMPTY_LOG, fetchData, type LogEntry, string2date} from "$lib/services/dataProvider.svelte"
   import {Timing} from "$lib/types/timing"
   import OneListing from "$lib/OneListing.svelte";
+  import {listen} from "@tauri-apps/api/event";
 
   let displayableData: LogEntry<Date>[] = $state<LogEntry<Date>[]>(EMPTY_LOG);
 
-  //TODO either use listen or just periodically retrieve information using fetchData
-  //? for now let's just repeatedly call fetch
-
   $effect(() => {
-    setInterval(() => {
+    const int = setInterval(() => {
       fetchData().then(coll => {
         displayableData = coll;
       });
-    }, 1000);
+    });
+
+    return () => clearInterval(int);
   });
 
   interface WindowInfo {
@@ -22,33 +24,42 @@
     process_name: string
   }
 
-  /*listen<WindowInfo[]>("activity_change", item => {
-    console.log(item);
-  })*/
+  /*listen<LogEntry<string>[]>("activity_change", item => {
+    console.log("activity_change", item, item.payload);
 
+    // const state = $state.snapshot(displayableData)
 
+    item.payload.forEach(x => {
+      displayableData.push(string2date(x));
+    })
 
-  /*function dateDiff(start: Date, end: Date) {
-    let s = moment(start);
-    let e = moment(end);
+    /!*if (item.payload.length === 1) {
+      const coll = item.payload[0];
+      displayableData.push(string2date(coll));
+    }
 
-    let seconds = s.diff(e, "second")
-    let minutes = s.diff(e, "minute")
-    let hours = s.diff(e, "hour")
-    let days = s.diff(e, "day")
+    else if (item.payload.length === 2) {
+      const [one, two] = item.payload
+      displayableData.push(
+              string2date(one),
+              string2date(two)
+      );
+    }*!/
 
-    return {days, hours, minutes, seconds};
-  }*/
+    // console.log(state);
+  });*/
+
+  const parsedNames = $derived(new Set(displayableData.map(item => item.process_name)))
 
   const parsedData = $derived.by(() => {
-    const names = new Set(displayableData.map(item => item.process_name))
     const out = new Map<string, Timing>()
-    names.forEach(name => {
+    parsedNames.forEach(name => {
       const f = displayableData.filter(item => item.process_name === name);
       const m = f.map(item => new Timing(item.end_time ?? item.temp_end_time, item.start_time));
 
       if (m.length === 0) {
         console.warn(`For name: ${name} exists no data`);
+        return;
       }
       const result = m.reduce((acc, item) => acc.add(item));
 
@@ -56,7 +67,7 @@
     });
 
     return out;
-  })
+  });
 
   function getTotal() {
     const t_seconds = parsedData.values().reduce<number>((acc, item) => acc + item.collapseToSeconds(), 0);
@@ -85,21 +96,29 @@
 
 </script>
 
-<div>
-  <div class="list-holder">
-    {#each sorted() as [name, timed], i (i)}
-      <OneListing name={name} time={timed.format()} percentage={getPercentage(timed, getTotal()) ?? -1}/>
-    {/each}
-  </div>
-  <div>
-    <span>Total time: {getTotal().format()}</span>
-  </div>
+<div class="list-holder">
+  {#each sorted() as [name, timed], i (i)}
+    <OneListing name={name} time={timed.format()} percentage={getPercentage(timed, getTotal()) ?? -1}/>
+  {/each}
+</div>
+<div class="total-time">
+  <span >Total time: {getTotal().format()}</span>
 </div>
 
 <style lang="scss">
   .list-holder {
-    gap: .5rem;
     display: flex;
     flex-direction: column;
+    align-items: stretch;
+    background-color: #24c8db;
+
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .total-time {
+    flex: 0 0 auto;
+    margin-bottom: 1rem;
   }
 </style>

@@ -22,6 +22,15 @@ export const EMPTY_LOG: LogEntry<Date>[] = [
   }
 ]
 
+export function string2date(one: LogEntry<string>): LogEntry<Date> {
+  return {
+    ...one,
+    start_time: new Date(one.start_time),
+    temp_end_time: new Date(one.temp_end_time),
+    end_time: one.end_time ? new Date(one.end_time) : null
+  };
+}
+
 export async function fetchData() {
   try {
     return (await invoke<LogEntry<string>[]>("get_today_logs"))
@@ -38,3 +47,9 @@ export async function fetchData() {
     return DEFAULT_LOG_ENTRY;
   }
 }
+
+// export let dataSource = $state(await fetchData());
+/*
+export let parsedProcessNames = $derived.by(() => {
+  return dataSource.map(x => x.process_name)
+});*/

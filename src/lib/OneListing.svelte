@@ -1,55 +1,33 @@
 <script lang="ts">
-
-  interface Props {
-    name: string,
-    percentage: string,
-    time: string
-  }
+  //TODO maybe figure out how to make the percentage text (.range__text) more readable on the darker background
 
   let {
     name,
     percentage,
     time
-  }: Props = $props();
+  } : {
+    name: string,
+    percentage: string
+    time: string
+  } = $props();
 
-  function calculateWidth() {
-    const fP = parseFloat(percentage) / 100;
-    const baseBoxWidth = 6; // rem
-    return fP * baseBoxWidth;
-  }
-
-  let newWidth = $derived.by(() => {
-    const fP = parseFloat(percentage) / 100;
-    const baseBoxWidth = 6; // rem
-    return fP * baseBoxWidth;
-  })
-
-  let offset = $derived.by(() => {
-    const fP = parseFloat(percentage) / 100;
-    const baseBoxWidth = 6; // rem
-    const newOffset = Math.min(fP * baseBoxWidth, baseBoxWidth * (1 - 0.75));
-
-    return newOffset.toString() + "rem";
-  })
-
-
-
+  /*$effect(() => {
+    console.log(name, percentage, time);
+  })*/
 
 </script>
 
 <div class="container">
   <span class="name">{name}</span>
-  <div class="outer-box">
-    <div class="inner-box" style:width={newWidth.toString() + "rem"}></div>
-    <div class="inner-box-2" style:margin-left={offset}>
-      <span class="percentage">{percentage}</span>
-    </div>
+  <div class="range" style:--p={percentage}>
+    <span class="range__text">{percentage}</span>
   </div>
   <span class="time">{time}</span>
 </div>
 
 <style lang="scss">
   @use "sass:color";
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron&display=swap');
 
   :root {
     --base-box-width: 6rem;
@@ -58,45 +36,78 @@
 
   .container {
     display: grid;
-
-    grid-template-rows: 1fr;
-    grid-template-columns: 1fr repeat(2, 12vw);
+    align-items: center;
+    grid-template-columns: 2fr 1fr 1fr;
     gap: 0;
-    width: 100%;
-    height: 100%;
+    max-height: 35px;
 
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    &:first-child {
+      padding-top: 0.5rem;
+    }
+
+    &:not(:first-child) {
+      padding-top: 0.3rem;
+    }
+
+    &:not(:last-child) {
+      border-bottom: #ffffeb1a 1px solid;
+      padding-bottom: 0.3rem;
+    }
+
+    &:last-child {
+      padding-bottom: 0.5rem;
+    }
   }
 
-  .outer-box {
-    display: flex;
-    align-items: center;
-
-    height: 1.5rem;
-    width: var(--base-box-width);
-    background-color: black;
-  }
-
-  .inner-box {
-    height: 80%;
-    //width: var(--inner-box-width);
-    background-color: red;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .inner-box-2 {
-    position: absolute;
-
-  }
-
-  .percentage {
-    background-color: color.change(#2f2f2f, $alpha: 80%);
-    font-size: 0.8rem;
-    color: white;
+  .name {
+    padding-left: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    user-select: none;
+  }
+
+  .time {
+    text-align: right;
+    margin-right: 0.5rem;
+  }
+
+  .range {
+    position: relative;
+    background-color: #333;
+    width: inherit;
+    min-width: 80px;
+    height: 30px;
+    transform: skew(30deg);
+
+    font-family: "Orbitron", monospace;
+
+    &:before {
+      --width: var(--p);
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background-color: #F3E600;
+      z-index: 0;
+      animation: load .5s forwards linear;
+    }
+
+    &__text {
+      content: var(--p) '%';
+      color: #000;
+      position: absolute;
+      left: 5%;
+      top: 50%;
+      transform: translateY(-50%) skewX(-30deg);
+      z-index: 1;
+    }
+  }
+
+  
+  @keyframes load {
+    to {
+      width: var(--width);
+    }
   }
 </style>
