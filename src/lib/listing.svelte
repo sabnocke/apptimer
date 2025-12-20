@@ -13,16 +13,16 @@
       fetchData().then(coll => {
         displayableData = coll;
       });
-    });
+    }, 1000);
 
     return () => clearInterval(int);
   });
 
-  interface WindowInfo {
+  /*interface WindowInfo {
     pid: number,
     window_title: string,
     process_name: string
-  }
+  }*/
 
   /*listen<LogEntry<string>[]>("activity_change", item => {
     console.log("activity_change", item, item.payload);
@@ -51,23 +51,33 @@
 
   const parsedNames = $derived(new Set(displayableData.map(item => item.process_name)))
 
+  /*$effect(() => {
+    console.log($state.snapshot(displayableData));
+  })*/
+
   const parsedData = $derived.by(() => {
     const out = new Map<string, Timing>()
     parsedNames.forEach(name => {
       const f = displayableData.filter(item => item.process_name === name);
+      // console.log(`listing | parsedData | f`, f);
       const m = f.map(item => new Timing(item.end_time ?? item.temp_end_time, item.start_time));
+      // console.log("listing | parsedData | m", m);
 
       if (m.length === 0) {
-        console.warn(`For name: ${name} exists no data`);
+        console.warn(`listing | parsedData | For name: ${name} exists no data`);
         return;
       }
       const result = m.reduce((acc, item) => acc.add(item));
 
-      out.set(name, result.resync());
+      out.set(name || "%MISSING_NAME%", result.resync());
     });
 
     return out;
   });
+
+  /*$effect(() => {
+    console.log($state.snapshot(parsedData));
+  })*/
 
   function getTotal() {
     const t_seconds = parsedData.values().reduce<number>((acc, item) => acc + item.collapseToSeconds(), 0);
@@ -97,13 +107,13 @@
 </script>
 
 <div class="list-holder">
-  {#each sorted() as [name, timed], i (i)}
+  <!--{#each sorted() as [name, timed], i (i)}
     <OneListing name={name} time={timed.format()} percentage={getPercentage(timed, getTotal()) ?? -1}/>
-  {/each}
+  {/each}-->
 </div>
-<div class="total-time">
+<!--<div class="total-time">
   <span >Total time: {getTotal().format()}</span>
-</div>
+</div>-->
 
 <style lang="scss">
   .list-holder {

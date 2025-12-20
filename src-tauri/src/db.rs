@@ -101,7 +101,7 @@ pub async fn log_switch(
     let now = Utc::now();
 
     let pool = DB_CONN.get().expect("Failed to get db connection");
-    println!("Debug print");
+    // println!("Debug print");
     let mut updated_entry = LogEntry::default();
     let maybe_entry = sqlx::query_as!(
         LogEntry,
@@ -133,7 +133,7 @@ pub async fn log_switch(
     //     .bind(now)
     //     .execute(pool)
     //     .await?;
-    println!("Debug print");
+    // println!("Debug print");
     let end_time: Option<DateTime<Utc>> = None;
 
     let update_entry_2: LogEntry = sqlx::query_as!(
@@ -159,7 +159,7 @@ pub async fn log_switch(
     .await
     .map_err(|e| format!("log_switch -> insert: {}", e.to_string()))?;
 
-    println!("Debug print");
+    // println!("Debug print");
     /*sqlx::query("INSERT INTO activity_log (process_name, window_title, start_time, temp_end_time) VALUES (?, ?, ?, ?)")
     .bind(process_name)
     .bind(title)

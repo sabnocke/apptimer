@@ -48,6 +48,8 @@ export async function fetchData() {
   }
 }
 
+// $effect(() => {})
+
 // export let dataSource = $state(await fetchData());
 /*
 export let parsedProcessNames = $derived.by(() => {

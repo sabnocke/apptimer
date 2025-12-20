@@ -1,6 +1,7 @@
 <script lang="ts">
   import Listing from "./listing.svelte";
   import LargerListing from "$lib/largerListing.svelte";
+  import Timeline from "$lib/Timeline.svelte";
 
   interface Props {
     minTopRowHeight: number,
@@ -67,30 +68,37 @@
 
 </script>
 
-<div class="grids" bind:this={centralContainer}>
-  <div class="topRow" bind:this={topRow}>
-    div1
-  </div>
-  <div class="td-resizer">
-    <button title="clickable-td-resizer" class="btn-td-resizer"
-            onmousedown={() => isResizingHorizontal = true}
-            ondblclick={resetTopRow}
-    ></button>
-  </div>
-  <div class="bottomRow">
-    <div class="left" bind:this={leftCol}>
-      <LargerListing />
-    </div> <!-- left -->
-    <div class="lr-resizer">
-      <button title="clickable-lr-resizer" class="btn-lr-resizer"
-              onmousedown={() => isResizingVertical = true}
-              ondblclick={resetLeftCol}
-      ></button>
-    </div> <!-- resizer -->
-    <div class="right">
-      <Listing />
-    </div> <!-- right -->
-  </div>
+<!--<div class="grids" bind:this={centralContainer}>-->
+<!--  <div class="topRow" bind:this={topRow}>-->
+<!--    div1-->
+<!--  </div>-->
+<!--  <div class="td-resizer">-->
+<!--    <button title="clickable-td-resizer" class="btn-td-resizer"-->
+<!--            onmousedown={() => isResizingHorizontal = true}-->
+<!--            ondblclick={resetTopRow}-->
+<!--    ></button>-->
+<!--  </div>-->
+<!--  <div class="bottomRow">-->
+<!--    <div class="left" bind:this={leftCol}>-->
+<!--      <LargerListing />-->
+<!--    </div> &lt;!&ndash; left &ndash;&gt;-->
+<!--    <div class="lr-resizer">-->
+<!--      <button title="clickable-lr-resizer" class="btn-lr-resizer"-->
+<!--              onmousedown={() => isResizingVertical = true}-->
+<!--              ondblclick={resetLeftCol}-->
+<!--      ></button>-->
+<!--    </div> &lt;!&ndash; resizer &ndash;&gt;-->
+<!--    <div class="right">-->
+<!--      <Listing />-->
+<!--    </div> &lt;!&ndash; right &ndash;&gt;-->
+<!--  </div>-->
+<!--</div>-->
+
+<div class="controls">
+  Control
+</div>
+<div class="display">
+  <Timeline />
 </div>
 
 
@@ -102,12 +110,12 @@
     margin: 0;
   }
 
-  :root {
+  /*:root {
     --left-col-width: 1fr;
     --top-row-height: 1fr;
-  }
+  }*/
 
-  .grids {
+  /*.grids {
     display: grid;
     grid-template-rows: var(--top-row-height) 1rem 1fr;
     width: 100%;
@@ -190,6 +198,15 @@
   .bottomRow {
     display: grid;
     grid-template-columns: var(--left-col-width) 1rem 1fr;
+  }*/
+
+  .controls {
+    height: 20%;
+  }
+
+  .display {
+    height: 80%;
+    width: 100%;
   }
 
 </style>

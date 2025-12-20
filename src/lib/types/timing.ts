@@ -1,6 +1,7 @@
 import {Temporal} from "@js-temporal/polyfill";
 import Instant = Temporal.Instant;
 
+type OrderingType = "ascending" | "descending" | "a" | "d" | "asc" | "desc";
 
 export class Timing {
   public days: number = 0;
@@ -125,14 +126,27 @@ export class Timing {
     return this.resync().format();
   }
 
-  public cmp(other: Timing, method: "start" | "end"): number {
+  public cmp(other: Timing, method: "start" | "end", ordering: OrderingType = "ascending"): number {
     // if this is after other => positive
+    //
     // if this is before other => negative
+    let sign = 0;
     switch (method) {
       case "start":
-        return Math.sign(other.start.until(this.start).total("seconds"));
+        sign = Math.sign(other.start.until(this.start).total("seconds"));
+        break;
       case "end":
-        return Math.sign(other.end.until(this.end).total("seconds"));
+        sign = Math.sign(other.end.until(this.end).total("seconds"));
+        break;
+    }
+
+    const letter = ordering[0];
+    if (letter === "a") {
+      return sign;
+    } else if (letter === "d") {
+      return -1 * sign;
+    } else {
+      return sign
     }
   }
 }
