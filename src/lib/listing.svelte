@@ -51,16 +51,25 @@
 
   const parsedNames = $derived(new Set(displayableData.map(item => item.process_name)))
 
+  interface DisplayData {
+    name: string,
+    start: Date,
+    end: Date,
+    time: Timing,
+  }
+
   /*$effect(() => {
     console.log($state.snapshot(displayableData));
   })*/
 
   const parsedData = $derived.by(() => {
-    const out = new Map<string, Timing>()
+    const out = new Map<string, DisplayData>()
     parsedNames.forEach(name => {
       const f = displayableData.filter(item => item.process_name === name);
       // console.log(`listing | parsedData | f`, f);
       const m = f.map(item => new Timing(item.end_time ?? item.temp_end_time, item.start_time));
+      const begin = Math.min(...f.map(x => x.start_time.valueOf()));
+      const end = Math.max(...f.map(x => (x.end_time ?? x.temp_end_time).valueOf()));
       // console.log("listing | parsedData | m", m);
 
       if (m.length === 0) {
@@ -69,7 +78,14 @@
       }
       const result = m.reduce((acc, item) => acc.add(item));
 
-      out.set(name || "%MISSING_NAME%", result.resync());
+      const item: DisplayData = {
+        name: name,
+        start: new Date(begin),
+        end: new Date(end),
+        time: result.resync()
+      }
+
+      out.set(name || "%MISSING_NAME%", item);
     });
 
     return out;
@@ -80,7 +96,7 @@
   })*/
 
   function getTotal() {
-    const t_seconds = parsedData.values().reduce<number>((acc, item) => acc + item.collapseToSeconds(), 0);
+    const t_seconds = parsedData.values().reduce<number>((acc, item) => acc + item.time.collapseToSeconds(), 0);
     return Timing.from_seconds(t_seconds);
   }
 
@@ -97,8 +113,8 @@
       // here it is inverted for descending order
       const [, t0] = a;
       const [, t1] = b;
-      const sa: number = t0.collapseToSeconds() / getTotal().collapseToSeconds()
-      const sb: number = t1.collapseToSeconds() / getTotal().collapseToSeconds()
+      const sa: number = t0.time.collapseToSeconds() / getTotal().collapseToSeconds()
+      const sb: number = t1.time.collapseToSeconds() / getTotal().collapseToSeconds()
 
       return sb - sa;
     });
@@ -107,13 +123,19 @@
 </script>
 
 <div class="list-holder">
-  <!--{#each sorted() as [name, timed], i (i)}
-    <OneListing name={name} time={timed.format()} percentage={getPercentage(timed, getTotal()) ?? -1}/>
-  {/each}-->
+  {#each sorted() as [name, display], i (i)}
+    <OneListing
+            name={name}
+            time={display.time.format()}
+            percentage={getPercentage(display.time, getTotal()) ?? -1}
+            start={display.start}
+            end={display.end}
+    />
+  {/each}
 </div>
-<!--<div class="total-time">
+<div class="total-time">
   <span >Total time: {getTotal().format()}</span>
-</div>-->
+</div>
 
 <style lang="scss">
   .list-holder {

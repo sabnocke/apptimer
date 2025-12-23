@@ -6,6 +6,7 @@
     // import Gantt from 'frappe-gantt';
 
     let source = $state(EMPTY_LOG);
+    let display: HTMLDivElement = $state({} as HTMLDivElement);
 
     $effect(() => {
         fetchData().then(result => source = result);
@@ -17,6 +18,7 @@
         return uniqueNames.map((x, idx) => ({
             id: idx,
             label: x, // This must match the 'property' in tableHeaders below
+            contentHtml: "<div>Hi</div>"
         }));
     });
 
@@ -25,8 +27,8 @@
         resourceId: number,
         from: number,
         to: number,
-        html: string,
-        classes: string
+        // html: string,
+        // classes: string
     }
 
     // 2. Prepare Tasks
@@ -39,9 +41,12 @@
                 resourceId: row!.id,
                 // Tooltip to show name on hover
                 html: `<div style="width:100%; height:100%" title="${x.process_name}"></div>`,
+                buttonHtml: `<div style="width:100%; height:100%" title="${x.process_name}"></div>`,
                 from: x.start_time.valueOf(),
                 to: (x.end_time ?? x.temp_end_time).valueOf(),
-                classes: "task-item"
+                // classes: "task-item"
+                draggable: false,
+                resizable: false,
             }
         });
     });
@@ -92,11 +97,11 @@
     });
 
     $effect(() => {
-        // console.log($state.snapshot(rows));
+        console.log($state.snapshot(rows));
         console.log($state.snapshot(tasks));
         // console.log($state.snapshot(groupedTasks))
         const tt = [ ...$state.snapshot(longestTasks).values() ].flat();
-        console.log(tt);
+        // console.log(tt);
     })
 
     // 3. Time Ranges
@@ -109,19 +114,22 @@
     // 4. Options
     let options = $derived({
         dateAdapter: new MomentSvelteGanttDateAdapter(moment),
-        fitWidth: true,
-        minWidth: 800,
-        columnUnit: 'hour',
+        fitWidth: false,
+        minWidth: display.clientWidth,
+        columnUnit: 'minute',
         columnWidth: 1,
+        // columnStrokeWidth: 10,
+        columnOffset: 30,
+        // tableWidth: 1000,
         headers: [
-            { unit: "minute", format: "HH:mm", increment: 10 },
+            { unit: "minute", format: "HH:mm", /*offset: 10*/ },
             // { unit: "second", format: "ss", increment: 10 }
         ],
         // View settings
         from: timeRange.from,
         to: timeRange.to /*Math.min(timeRange.to, timeRange.from + (5 * 60 * 1000))*/,
         rows: rows,
-        tasks: [ ...longestTasks.values() ].flat(),
+        tasks: /*tasks*/ [ ...longestTasks.values() ].flat(),
         enableCreateTasks: false,
         enableCreateDependency: false,
         tableWidth: 200,
@@ -136,7 +144,7 @@
     const tableHeaders = [{ title: "Application", property: "label", width: 140 }];
 </script>
 
-<div class="container">
+<div class="container" bind:this={display}>
     <SvelteGantt {...options}>
     </SvelteGantt>
 </div>
@@ -149,7 +157,7 @@
     }
 
     /* Add basic Gantt styling */
-    :global(.sg-gantt) {
+    /*:global(.sg-gantt) {
         display: flex;
         width: 100%;
         height: 100%;
@@ -179,5 +187,5 @@
     :global(.task-item) {
         background-color: #74c0fc;
         border-radius: 4px;
-    }
+    }*/
 </style>

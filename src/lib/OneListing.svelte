@@ -4,16 +4,28 @@
   let {
     name,
     percentage,
-    time
+    time,
+    start,
+    end
   } : {
     name: string,
     percentage: string
     time: string
+    start: Date
+    end: Date
   } = $props();
 
   /*$effect(() => {
     console.log(name, percentage, time);
   })*/
+
+  const formatter = Intl.DateTimeFormat("cs-CZ", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+
+  const formatedStart = $derived(formatter.format(start));
+  const formatedEnd = $derived(formatter.format(end));
 
 </script>
 
@@ -21,6 +33,10 @@
   <span class="name">{name}</span>
   <div class="range" style:--p={percentage}>
     <span class="range__text">{percentage}</span>
+  </div>
+  <div>
+    <span>{formatedStart}</span>
+    <span>{formatedEnd}</span>
   </div>
   <span class="time">{time}</span>
 </div>
@@ -37,7 +53,7 @@
   .container {
     display: grid;
     align-items: center;
-    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
     gap: 0;
     max-height: 35px;
 

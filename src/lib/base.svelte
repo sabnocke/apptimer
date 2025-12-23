@@ -1,105 +1,214 @@
 <script lang="ts">
-  import Listing from "./listing.svelte";
-  import LargerListing from "$lib/largerListing.svelte";
-  import Timeline from "$lib/Timeline.svelte";
+    //! pending destruction
 
-  interface Props {
-    minTopRowHeight: number,
-    minLeftColWidth: number
-  }
+    import Listing from "./listing.svelte";
+    import RadioButtons from "$lib/RadioButtons.svelte";
+    import LargerListing from "$lib/largerListing.svelte";
+    import Timeline from "$lib/Timeline.svelte";
+    import TimelineTwo from "$lib/TimelineTwo.svelte";
+    import {EMPTY_LOG, fetchData} from "$lib/services/dataProvider.svelte";
+    import type {GanttRow, GanttTask} from "$lib/types";
 
-  let {
-    minTopRowHeight = 300,
-    minLeftColWidth = 450
-  }: Props = $props();
+    let source = $state(EMPTY_LOG);
 
-  let isResizingVertical = $state(false);
-  let isResizingHorizontal = $state(false);
+    $effect(() => {
+        const int = setInterval(() => {
+            fetchData().then(r => source = r);
+        }, 1000);
 
-  let lowerRowRightHeight = $state(0);
+        return () => clearInterval(int);
+    });
 
-  const DEFAULT = {} as HTMLDivElement;
+    /*let task_map: Map<string, GanttTask[]> = $derived.by(() => {
+        const map = new Map<string, GanttTask[]>();
+        const snapshot = $state.snapshot(source);
+        const uniqueRowNames = new Set(snapshot.map(x => x.process_name));
+        for (const name of uniqueRowNames) {
+            const tasks = snapshot
+                .filter(x => x.process_name === name)
+                .map((x, idx) => ({
+                    id: idx,
+                    label: x.process_name,
+                    start: x.start_time,
+                    end: x.end_time ?? x.temp_end_time
+                }));
+            map.set(name, tasks);
+        }
 
-  let centralContainer = $state<HTMLDivElement>(DEFAULT);
-  let leftCol = $state<HTMLDivElement>(DEFAULT);
-  let topRow = $state<HTMLDivElement>(DEFAULT);
+        return map;
+    });*/
 
-  function resetTopRow() {
-    document.documentElement.style.setProperty("--top-row-height", "1fr");
-  }
+    function getLongestChains(source: GanttTask[]) {
+        if (source.length === 0) return [];
+        if (source.length === 1) return [ ...source ];
 
-  function resetLeftCol() {
-    document.documentElement.style.setProperty("--left-col-width", "1fr");
-  }
+        const chains: GanttTask[] = [];
 
-  function resizeLeftCol(event: MouseEvent) {
-    if (!isResizingVertical) return;
+        let currentChain = {...source[0]};
+        for (const nextTask of source) {
+            if (currentChain === nextTask) continue;
 
-    const newWidth = event.clientX - leftCol.offsetLeft;
+            if (currentChain.to === nextTask.from) {
+                currentChain.to = nextTask.to
+            } else {
+                chains.push(currentChain);
+                currentChain = { ...nextTask };
+            }
+        }
 
-    if (newWidth > 0 &&
-        newWidth < centralContainer.offsetWidth &&
-        (centralContainer.offsetWidth - newWidth) > minLeftColWidth
-    ) {
-      document.documentElement.style.setProperty("--left-col-width", `${newWidth}px`);
+        chains.push(currentChain);
+
+        return chains[0].id === chains[1].id ? chains.slice(1, -1) : chains;
     }
-  }
 
-  function resizeTopRow(event: MouseEvent) {
-    if (!isResizingHorizontal) return;
+    let tasks = $derived.by<GanttTask[]>(() => {
+        if (source.length === 0) return [];
 
-    const newHeight = event.clientY - topRow.offsetTop;
+        return source.map((x, idx) => {
+            return {
+                id: idx,
+                label: x.process_name,
+                from: x.start_time,
+                to: x.end_time ?? x.temp_end_time
+            };
+        });
+    });
 
-    if (newHeight > 0 &&
-        newHeight < centralContainer.offsetHeight &&
-        (centralContainer.offsetHeight - newHeight) > minTopRowHeight
-    ) {
-      document.documentElement.style.setProperty("--top-row-height", `${newHeight}px`);
+    let task_map = $derived.by(() => {
+        return Map.groupBy<string, GanttTask>(tasks, (item) => {
+            return item.label;
+        });
+    });
+
+    $effect(() => {
+        console.log(tasks, getLongestChains(tasks));
+        console.log();
+    })
+
+    let rows = $derived.by<GanttRow[]>(() => {
+        if (source.length === 0) return [];
+
+        const uniqueRowNames = new Set(source.map(x => x.process_name));
+        return [...uniqueRowNames].map((x, idx) => {
+            return {
+                id: idx,
+                label: x,
+                tasks: task_map.get(x) ?? [],
+            };
+        });
+    });
+
+    /*$effect(() => {
+
+    })
+
+    let tasks = $derived.by<GanttRow[]>(() => {
+        let app_tasks: Map<number, GanttTask[]> = new Map();
+        let uniqueRowsNames = new Set(rows.map(x => x.label));
+        uniqueRowsNames.forEach((name, idx) => {
+            const connIdx = rows.findIndex(x => x.label === name);
+            const coll = source.filter(x => x.process_name === name);
+            const proto_tasks = coll.map<GanttTask>((x, idx) => {
+                return {
+                    id: idx,
+                    label: x.process_name,
+                    start: x.start_time,
+                    end: x.end_time ?? x.temp_end_time,
+                }
+            });
+            if (connIdx !== -1) {
+                rows[connIdx].tasks = proto_tasks;
+            }
+        })
+    })*/
+    
+    /*interface Props {
+      minTopRowHeight: number,
+      minLeftColWidth: number
     }
-  }
 
+    let {
+      minTopRowHeight = 300,
+      minLeftColWidth = 450
+    }: Props = $props();
 
-  document.addEventListener("mousemove", resizeTopRow);
-  document.addEventListener("mousemove", resizeLeftCol);
-  document.addEventListener("mouseup", () => {
-    isResizingHorizontal = false;
-    isResizingVertical = false;
-  })
+    let isResizingVertical = $state(false);
+    let isResizingHorizontal = $state(false);
+
+    let lowerRowRightHeight = $state(0);
+
+    const DEFAULT = {} as HTMLDivElement;
+
+    let centralContainer = $state<HTMLDivElement>(DEFAULT);
+    let leftCol = $state<HTMLDivElement>(DEFAULT);
+    let topRow = $state<HTMLDivElement>(DEFAULT);*/
+
+    /*function resetTopRow() {
+      document.documentElement.style.setProperty("--top-row-height", "1fr");
+    }
+
+    function resetLeftCol() {
+      document.documentElement.style.setProperty("--left-col-width", "1fr");
+    }*/
+
+    /*function resizeLeftCol(event: MouseEvent) {
+      if (!isResizingVertical) return;
+
+      const newWidth = event.clientX - leftCol.offsetLeft;
+
+      if (newWidth > 0 &&
+          newWidth < centralContainer.offsetWidth &&
+          (centralContainer.offsetWidth - newWidth) > minLeftColWidth
+      ) {
+        document.documentElement.style.setProperty("--left-col-width", `${newWidth}px`);
+      }
+    }
+
+    function resizeTopRow(event: MouseEvent) {
+      if (!isResizingHorizontal) return;
+
+      const newHeight = event.clientY - topRow.offsetTop;
+
+      if (newHeight > 0 &&
+          newHeight < centralContainer.offsetHeight &&
+          (centralContainer.offsetHeight - newHeight) > minTopRowHeight
+      ) {
+        document.documentElement.style.setProperty("--top-row-height", `${newHeight}px`);
+      }
+    }*/
+
+    /*document.addEventListener("mousemove", resizeTopRow);
+    document.addEventListener("mousemove", resizeLeftCol);
+    document.addEventListener("mouseup", () => {
+      isResizingHorizontal = false;
+      isResizingVertical = false;
+    })*/
+
+    let selectedButton = $state("graph");
+    let namesList = $state(["graph", "list"]);
+    let referredName = $state("");
+
+    /*$effect(() => {
+        console.log(selectedButton);
+        console.log(referredName);
+    });*/
 
 </script>
 
-<!--<div class="grids" bind:this={centralContainer}>-->
-<!--  <div class="topRow" bind:this={topRow}>-->
-<!--    div1-->
-<!--  </div>-->
-<!--  <div class="td-resizer">-->
-<!--    <button title="clickable-td-resizer" class="btn-td-resizer"-->
-<!--            onmousedown={() => isResizingHorizontal = true}-->
-<!--            ondblclick={resetTopRow}-->
-<!--    ></button>-->
-<!--  </div>-->
-<!--  <div class="bottomRow">-->
-<!--    <div class="left" bind:this={leftCol}>-->
-<!--      <LargerListing />-->
-<!--    </div> &lt;!&ndash; left &ndash;&gt;-->
-<!--    <div class="lr-resizer">-->
-<!--      <button title="clickable-lr-resizer" class="btn-lr-resizer"-->
-<!--              onmousedown={() => isResizingVertical = true}-->
-<!--              ondblclick={resetLeftCol}-->
-<!--      ></button>-->
-<!--    </div> &lt;!&ndash; resizer &ndash;&gt;-->
-<!--    <div class="right">-->
-<!--      <Listing />-->
-<!--    </div> &lt;!&ndash; right &ndash;&gt;-->
-<!--  </div>-->
-<!--</div>-->
-
 <div class="controls">
-  Control
+    <RadioButtons names={namesList} bind:active={selectedButton}/>
+    Control
 </div>
-<div class="display">
-  <Timeline />
-</div>
+{#if selectedButton === "list"}
+    <div class="display">
+        <Listing/>
+    </div>
+{:else if selectedButton === "graph"}
+    <div class="display">
+<!--        <Timeline/>-->
+        <TimelineTwo rows={rows} />
+    </div>
+{/if}
 
 
 <style lang="scss">
