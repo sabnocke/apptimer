@@ -1,6 +1,7 @@
-import {invoke} from "@tauri-apps/api/core"
-import {Ok, Err, ResultAsync, ok, okAsync, errAsync, err} from "neverthrow";
-import {Box, type GanttTask} from "$lib/types"
+import {invoke} from "@tauri-apps/api/core";
+import {Box, type GanttTask} from "$lib/types";
+import {resolver} from "$lib/services";
+import {listen} from "@tauri-apps/api/event";
 
 export interface LogEntry<T> {
     id: number,
@@ -11,51 +12,14 @@ export interface LogEntry<T> {
     end_time: T | null
 }
 
-const DEFAULT_LOG_ENTRY: LogEntry<Date>[] = []
-
-export const EMPTY_LOG: LogEntry<Date>[] = [
-    {
-        id: -1,
-        process_name: "",
-        window_title: "",
-        start_time: new Date(),
-        temp_end_time: new Date(),
-        end_time: new Date()
-    }
-]
-
-export function string2date(one: LogEntry<string>): LogEntry<Date> {
-    return {
-        ...one,
-        start_time: new Date(one.start_time),
-        temp_end_time: new Date(one.temp_end_time),
-        end_time: one.end_time ? new Date(one.end_time) : null
-    };
-}
-
-type Ordering = "ascending" | "descending" | "asc" | "desc";
-
-export async function fetchData() {
-    try {
-        return (await invoke<LogEntry<string>[]>("get_today_logs"))
-            .map(item => {
-                return {
-                    ...item,
-                    start_time: new Date(item.start_time),
-                    temp_end_time: new Date(item.temp_end_time),
-                    end_time: item.end_time ? new Date(item.end_time) : null
-                } as LogEntry<Date>
-            });
-    } catch (e) {
-        console.error(e)
-        return DEFAULT_LOG_ENTRY;
-    }
-}
-
 class Provider extends Array {
     data = $state<LogEntry<Date>[]>([]);
     loading = $state(true);
     error = $state<string | null>(null);
+    intervalId: number | null = null;
+    listeners: number = 0;
+    private unListen: null | (() => void) = null;
+    listenerActive = false;
 
     timeRange = $derived.by(() => {
         if (this.data.length === 0) return {start: 0, end: 0, totalSeconds: 0};
@@ -68,92 +32,79 @@ class Provider extends Array {
     });
 
     rows = $derived.by(() => {
-        return this.uniqueNames().map((name, idx) => ({id: idx, name: name}));
+        return this.uniqueNames()
+            .map((name, idx) => (
+                {id: idx, name: name, displayName: resolver.resolve(name)}
+            ));
     });
 
     private getLongestChains(source: GanttTask<number>[]) {
-        const validTasks = source.filter(t => t && t.from !== undefined);
-
-        if (validTasks.length === 0) return [];
+        if (source.length === 0) return [];
+        if (source.length === 1) return [...source];
 
         // 2. Sort by Start Time
-        const sorted = validTasks.slice().sort((a, b) => a.from - b.from)
+        const sorted = source.slice().sort((a, b) => a.from - b.from)
 
         const chains: GanttTask<number>[] = [];
         let currentChain: GanttTask<number> = {...sorted[0]};
-        /*for (const nextTask of source) {
-          if (currentChain === nextTask) continue;
 
-          if (currentChain.to === nextTask.from) {
-            currentChain.to = nextTask.to
-          } else {
-            chains.push(currentChain);
-            currentChain = { ...nextTask };
-          }
-        }*/
+        let currentStart = sorted[0];
+        let currentTo = sorted[0].to;
 
-        for (let i = 1; i <= sorted.length; i++) {
+        for (let i = 1; i < sorted.length; i++) { //! potentially might miss something (<= -> <)
             const nextTask = sorted[i];
 
             if (!nextTask) continue;
 
-            if (nextTask.from <= currentChain.to) {
-                currentChain.to = Math.max(currentChain.to, nextTask.to);
+            if (nextTask.from <= currentTo) {
+                currentTo = Math.max(currentChain.to, nextTask.to);
             } else {
-                chains.push(currentChain);
-                currentChain = {...nextTask};
+                chains.push({
+                    ...currentStart,
+                    to: currentTo,
+                });
+
+                currentStart = nextTask;
+                currentTo = nextTask.to;
             }
         }
 
-        chains.push(currentChain);
+        chains.push({
+            ...currentStart,
+            to: currentTo,
+        });
 
-        return /*chains[0].id === chains[1].id ? chains.slice(1, -1) : */chains;
+        return chains;
     }
 
-    tasks = $derived.by(() => {
-        if (this.rows.length === 0) return [];
+    longestTasks = $derived.by(() => {
+        const grouped = Map.groupBy(this.data, item => item.process_name);
+        const result: GanttTask<number>[] = [];
 
-        const result = this.data.map<GanttTask<number> | null>((x, idx) => {
-            const row = this.rows.find(r => r.name === x.process_name);
-            if (!row) return null;
+        for (const [procName, rawItems] of grouped) {
+            const row = this.rows.find(r => r.name === procName);
+            if (!row || rawItems.length === 0) continue;
 
-            const from = x.start_time.valueOf();
-            const to = (x.end_time ?? x.temp_end_time).valueOf();
-
-            return {
+            const mapped = rawItems.map<GanttTask<number>>((x, idx) => ({
                 id: idx,
+                uid: `${x.process_name}-${x.start_time.valueOf()}`,
                 resourceId: row.id,
+                from: x.start_time.valueOf(),
+                to: (x.end_time ?? x.temp_end_time).valueOf(),
                 label: "",
-                html: `<div style="width:100%; height:100%" title="${x.process_name}: ${(to - from) / 1000}s"></div>`,
-                from: from,
-                to: to,
                 classes: "task-item"
-            } as GanttTask<number>;
-        }).filter(t => t !== null);
+            })).sort((a, b) => a.from - b.from);
 
-        // return this.getLongestChains(result);
+            result.push(...this.getLongestChains(mapped));
+        }
+
         return result;
     });
 
-    task_map = $derived(Map.groupBy(this.tasks, item => item.resourceId));
-    longestTasks = $derived.by(() => {
-        const result: GanttTask<number>[][] = [];
-        for (const item of this.task_map.values()) {
-            result.push(this.getLongestChains(item));
-        }
-
-        return result.flat();
-    })
-
-
-
-    intervalId: number | null = null;
-    listeners: number = 0;
-
-    subscribe() {
+    subscribe(usePolling: boolean = true, pollingRate: number = 1000) {
         this.listeners += 1;
         if (this.listeners === 1) {
-            this.startPolling();
+            this.startPolling(usePolling, !usePolling, pollingRate);
         }
 
         return () => {
@@ -164,16 +115,56 @@ class Provider extends Array {
         }
     }
 
-    private startPolling() {
-        console.log("Polling started...");
+    private stringToDate(item: LogEntry<string>): LogEntry<Date> {
+        return {
+            ...item,
+            start_time: new Date(item.start_time),
+            end_time: item.end_time ? new Date(item.end_time) : null,
+            temp_end_time: new Date(item.temp_end_time),
+        };
+    }
+
+    private newListener() {
         this.load();
-        this.intervalId = setInterval(() => this.load(), 1000);
+        listen<LogEntry<string>[]>("activity_change", event => {
+            console.log("new items", event.payload);
+            event.payload.forEach(entry => {
+                this.data.push(this.stringToDate(entry));
+            })
+        }).then(fn => this.unListen = fn);
+        this.listenerActive = true;
+    }
+
+    private removeListener() {
+        if (this.listenerActive && this.unListen) {
+            this.unListen();
+            this.listenerActive = false;
+        } else {
+            return false;
+        }
+
+        return true;
+    }
+
+    private startPolling(usePolling: boolean = true, useListen: boolean = false, pollInterval: number = 1000) {
+        console.log("Polling started...", usePolling, useListen);
+        if (usePolling) {
+            this.load();
+            this.intervalId = setInterval(() => this.load(), pollInterval);
+        }
+        else if (useListen)
+            this.newListener();
     }
 
     private stopPolling() {
         console.log("Polling ended...");
-        if (this.intervalId) clearInterval(this.intervalId);
-        this.intervalId = null;
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+        }
+        else if (this.listenerActive)
+            this.removeListener();
+
     }
 
     constructor() {

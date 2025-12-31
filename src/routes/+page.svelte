@@ -1,96 +1,41 @@
 <script lang="ts">
     import {dataSource} from "$lib/services/dataProvider.svelte";
-    import { type GanttTask, type GanttRow, SuperMap} from "$lib/types";
-    import {createPathMap} from "$lib/services/utils";
+    import {Timing} from "$lib/types";
     import RadioButtons from "$lib/RadioButtons.svelte";
     import TimelineTwo from "$lib/TimelineTwo.svelte";
-    import { onMount } from "svelte";
+    import Listing from "$lib/Listing.svelte";
 
-    /*$effect(() => {
-        const unsubscribe = dataSource.subscribe();
-        // console.log(dataSource.intervalId);
-        return unsubscribe;
-    });*/
+    const total = $derived.by(() => {
+        return Timing.from_seconds(dataSource.timeRange.totalSeconds)
+    });
 
-    /*onMount(() => {
-        return dataSource.subscribe();
-    })*/
-
-    const pathMap = createPathMap(["Graph", "#"], ["List", "./listing"]);
-
-    /*function getLongestChains(source: GanttTask[]) {
-        if (source.length === 0) return [];
-        if (source.length === 1) return [...source];
-
-        const chains: GanttTask[] = [];
-
-        let currentChain = {...source[0]};
-        for (const nextTask of source) {
-            if (currentChain === nextTask) continue;
-
-            if (currentChain.to === nextTask.from) {
-                currentChain.to = nextTask.to
-            } else {
-                chains.push(currentChain);
-                currentChain = {...nextTask};
-            }
-        }
-
-        chains.push(currentChain);
-
-        return chains[0].id === chains[1].id ? chains.slice(1, -1) : chains;
-    }*/
-
-
-    /*let tasks = $derived.by<GanttTask[]>(() => {
-        if (dataSource.length === 0) return [];
-
-        return dataSource.map<GanttTask>((x, idx) => {
-            return {
-                id: idx,
-                label: x.process_name,
-                from: x.start_time,
-                to: x.end_time ?? x.temp_end_time
-            };
-        });
-    });*/
-
-    // let task_map = $derived.by(() => Map.groupBy<string, GanttTask>(tasks, item => item.label));
-    // const task_map = $derived(SuperMap.groupBy(tasks, item => item.label));
-
-    /*$effect(() => {
-        console.log("task_map", task_map);
-    })*/
-
-    /*let rows = $derived.by<GanttRow[]>(() => {
-        if (dataSource.length === 0) return [];
-
-        return dataSource
-            .uniqueNames()
-            .map<GanttRow>((x, idx) => {
-                const longestTasks = getLongestChains(task_map.fetch(x).unwrapOr([]))
-                // console.log(longestTasks);
-                return {
-                    id: idx,
-                    label: x,
-                    tasks: longestTasks
-                }
-            });
-    });*/
-
-    /*$effect(() => {
-        console.log(tasks, getLongestChains(tasks));
-        console.log();
-    })*/
-
+    const formatter = Intl.DateTimeFormat("cs-CZ", {
+        hour: "2-digit",
+        minute: "2-digit",
+        weekday: "short",
+        day: "numeric",
+        month: "numeric",
+        year: "numeric",
+        hour12: false
+    });
 </script>
 
 <main class="container">
-    <div class="controls">
-        <RadioButtons names={pathMap} active="Graph" />
+    <div class="controls grid-container">
+        <div class="grid-item-1">
+            <div class="sub-flex-1">
+                <div id="flex-item-1">{formatter.format(dataSource.timeRange.start)}</div>
+                <div id="flex-item-2">-</div>
+                <div id="flex-item-3">{formatter.format(dataSource.timeRange.end)}</div>
+            </div>
+            <div id="flex-item-4">Total time: {total.format()}</div>
+        </div>
+        <div class="grid-item-2"><RadioButtons /></div>
     </div>
     <div class="display">
         <TimelineTwo />
+        <Listing />
+<!--        <ListingGrid />-->
     </div>
 </main>
 
@@ -130,16 +75,49 @@
     width: 100%;
   }
 
+  .sub-flex-1 {
+    display: flex;
+    align-items: center;
+  }
+
+  #flex-item-1, #flex-item-3, #flex-item-4 {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  #flex-item-2 {
+    flex: 0 1 auto;
+  }
+
+  .grid-container {
+    display: grid;
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr 50% 1fr;
+    gap: 0;
+    width: 100%;
+    height: 100%;
+
+    .grid-item-1 {
+      grid-area: 1/1/2/2;
+      background-color: rgba(37, 177, 196, 0.5);
+      align-self: start;
+    }
+
+    .grid-item-2 {
+      grid-area: 1/2/2/3;
+      background-color: rgba(156, 120, 64, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+  }
+
   .container {
-    //padding: 0 !important;
     display: flex;
     flex-direction: column;
 
     align-items: center;
     justify-content: center;
-    //margin: 10px;
     height: 100dvh;
-    //width: 100dvw;
-    //overflow: hidden;
   }
 </style>

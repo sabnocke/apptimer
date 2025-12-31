@@ -2,12 +2,30 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
+  "local": true,
   "windows": [
     "main"
   ],
   "permissions": [
     "core:default",
     "opener:default",
-    "sql:default"
+    "sql:default",
+    "fs:default",
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{"path": "$APPCONFIG/mapping.json"}, {"path": "$APPCONFIG"}]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{"path": "$APPCONFIG/mapping.json"}]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{"path": "$APPCONFIG/*"}]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [{"path": "$APPCONFIG"}]
+    }
   ]
 }

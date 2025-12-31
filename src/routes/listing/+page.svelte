@@ -38,7 +38,7 @@
                 name,
                 start: new Date(begin),
                 end: new Date(end),
-                time: result.resync(),
+                time: result,
             };
 
             out.set(name || "%MISSING_NAME%", item);
@@ -74,7 +74,7 @@
 
 <div class="container">
     <div class="container__controls">
-        <RadioButtons names={pathMap} active="List" />
+        <RadioButtons />
     </div>
     <div class="container__display">
         {#each sorted as [name, display] (display.id)}

@@ -1,6 +1,4 @@
 <script lang="ts">
-  //TODO maybe figure out how to make the percentage text (.range__text) more readable on the darker background
-
   let {
     name,
     percentage,
@@ -15,30 +13,24 @@
     end: Date
   } = $props();
 
-  /*$effect(() => {
-    console.log(name, percentage, time);
-  })*/
-
   const formatter = Intl.DateTimeFormat("cs-CZ", {
     dateStyle: "short",
     timeStyle: "short",
   });
 
-  const formatedStart = $derived(formatter.format(start));
-  const formatedEnd = $derived(formatter.format(end));
-
 </script>
 
 <div class="container">
-  <span class="name">{name}</span>
-  <div class="range" style:--p={percentage}>
+  <div class="name">{name}</div>
+  <div class="range-container">
     <span class="range__text">{percentage}</span>
+    <div class="range" style:--p={percentage}></div>
   </div>
-  <div>
-    <span>{formatedStart}</span>
-    <span>{formatedEnd}</span>
+  <div class="sub-container">
+    <div>{formatter.format(start)}</div>
+    <div>{formatter.format(end)}</div>
+    <span class="time">{time}</span>
   </div>
-  <span class="time">{time}</span>
 </div>
 
 <style lang="scss">
@@ -53,9 +45,12 @@
   .container {
     display: grid;
     align-items: center;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
-    gap: 0;
+    grid-template-columns: 0.75fr 0.75fr 1fr;
+    column-gap: 1rem;
+    row-gap: 0;
     max-height: 35px;
+
+
 
     &:first-child {
       padding-top: 0.5rem;
@@ -66,7 +61,7 @@
     }
 
     &:not(:last-child) {
-      border-bottom: #ffffeb1a 1px solid;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
       padding-bottom: 0.3rem;
     }
 
@@ -75,27 +70,46 @@
     }
   }
 
+  .sub-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+
+    &:nth-child(n) {
+      text-align: center;
+    }
+
+    &:last-child {
+      margin-right: 0.5rem;
+    }
+
+  }
+
   .name {
     padding-left: 1rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    background-clip: padding-box;
   }
 
-  .time {
-    text-align: right;
-    margin-right: 0.5rem;
+  .range-container {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .range {
     position: relative;
-    background-color: #333;
-    width: inherit;
+    background-color: rgba(0,0,0,0.05);
+    width: 75%;
     min-width: 80px;
-    height: 30px;
-    transform: skew(30deg);
+    max-width: 300px;
+    height: 15px;
 
-    font-family: "Orbitron", monospace;
+    clip-path: polygon(0 0, 100% 0, 95% 100%, 0 100%);
 
     &:before {
       --width: var(--p);
@@ -112,11 +126,8 @@
     &__text {
       content: var(--p) '%';
       color: #000;
-      position: absolute;
-      left: 5%;
-      top: 50%;
-      transform: translateY(-50%) skewX(-30deg);
       z-index: 1;
+      font-family: "Orbitron", monospace;
     }
   }
 

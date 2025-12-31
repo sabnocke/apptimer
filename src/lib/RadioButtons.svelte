@@ -1,22 +1,21 @@
 <script lang="ts">
     import {goto} from "$app/navigation";
+    import {page} from "$app/state";
 
-    let {
-        names = new Map(),
-        active = "",
-    }: {
-        names?: Map<string, string>;
-        active: string;
-    } = $props();
+    let currentPath = $derived(page.url.pathname)
 
-    let activeInNames = $derived(!!names.keys().find(x => x === active)); //TODO
+    const names = [
+        ["Graph", "/"],
+        ["List", "/listing"],
+    ]
 
 </script>
 
 <div class="radio-buttons">
-    {#each names.entries() as [name, path], i (i)}
+    <span>{currentPath}</span>
+    {#each names as [name, path], i (i)}
         <label class="radio">
-            <input type="radio" name="radio" checked={name === active} onclick={() => goto(path)}>
+            <input type="radio" name="radio" checked={name === currentPath} onclick={() => goto(path)}>
             <span class="name">{name}</span>
         </label>
     {/each}

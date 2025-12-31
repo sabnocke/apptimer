@@ -4,31 +4,41 @@ use sqlx::{
 };
 
 use crate::commands::LogEntry;
-use chrono::{Utc, DateTime};
-use std::{str::FromStr, time::Duration};
+use chrono::{DateTime, Utc};
 use std::future::Future;
 use std::pin::Pin;
+use std::{str::FromStr, time::Duration};
 use tauri::AppHandle;
 use tokio::sync::OnceCell;
 
 pub static DB_CONN: OnceCell<Pool<Sqlite>> = OnceCell::const_new();
 
 #[cfg(target_os = "windows")]
-fn get_migrate(pool: &Pool<Sqlite>) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send> {
+fn get_migrate(
+    pool: &Pool<Sqlite>,
+) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send> {
     Box::new(move || {
         let pool = pool.clone();
         Box::pin(async move {
-            sqlx::migrate!(".\\migrations").run(&pool).await.expect("Migration failed");
+            sqlx::migrate!(".\\migrations")
+                .run(&pool)
+                .await
+                .expect("Migration failed");
         })
     })
 }
 
 #[cfg(not(target_os = "windows"))]
-fn get_migrate(pool: &Pool<Sqlite>) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + '_> {
+fn get_migrate(
+    pool: &Pool<Sqlite>,
+) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + '_> {
     Box::new(move || {
         let pool = pool.clone();
         Box::pin(async move {
-            sqlx::migrate!("./migrations").run(&pool).await.expect("Migration failed");
+            sqlx::migrate!("./migrations")
+                .run(&pool)
+                .await
+                .expect("Migration failed");
         })
     })
 }
@@ -89,15 +99,13 @@ pub async fn sync_fallback(/*handle: AppHandle*/) -> Result<LogEntry, String> {
         now
     )
     .fetch_one(pool)
-    .await.map_err(|e| format!("sync_fallback: {}", e));
+    .await
+    .map_err(|e| format!("sync_fallback: {}", e));
 
     updated_entry
 }
 
-pub async fn log_switch(
-    process_name: &str,
-    title: &str,
-) -> Result<(LogEntry, LogEntry), String> {
+pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, LogEntry), String> {
     let now = Utc::now();
 
     let pool = DB_CONN.get().expect("Failed to get db connection");

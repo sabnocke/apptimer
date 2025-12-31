@@ -1,17 +1,14 @@
-use std::sync::{LazyLock, Mutex, Arc};
-use windows::{
-    Win32::UI::WindowsAndMessaging::{
-        GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId, GetWindowTextLengthW
-    },
-};
+use std::sync::{Arc, LazyLock, Mutex};
 use tauri::{AppHandle, Emitter};
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetForegroundWindow, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
+};
 
-use sysinfo::{System, Pid, RefreshKind, ProcessRefreshKind, ProcessesToUpdate};
-use crate::db::{DB_CONN, log_switch};
 use super::{LAST_NAME, LAST_TITLE};
+use crate::db::{log_switch, DB_CONN};
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| {
-    let settings = RefreshKind::default()
-        .with_processes(ProcessRefreshKind::default());
+    let settings = RefreshKind::default().with_processes(ProcessRefreshKind::default());
 
     Mutex::new(System::new_with_specifics(settings))
 });
@@ -38,7 +35,9 @@ const EMPTY_WINDOW_INFO: WindowInfo = WindowInfo {
 pub fn get_active_window() -> WindowInfo {
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd.0 == std::ptr::null_mut() {return EMPTY_WINDOW_INFO;}
+        if hwnd.0 == std::ptr::null_mut() {
+            return EMPTY_WINDOW_INFO;
+        }
 
         let mut pid: u32 = 0;
         GetWindowThreadProcessId(hwnd, Some(&mut pid));
@@ -78,7 +77,6 @@ pub fn get_active_window() -> WindowInfo {
 //     process_name
 // }
 
-
 pub async fn get_process_info(handle: &AppHandle) {
     let last_name = LAST_NAME.load();
     let last_title = LAST_TITLE.load();
@@ -88,7 +86,6 @@ pub async fn get_process_info(handle: &AppHandle) {
     if wi.pid == 0 || wi.is_empty() {
         return;
     }
-
 
     // let process = sys.processes().get(&Pid::from_u32(un_wi.pid));
 

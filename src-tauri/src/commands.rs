@@ -1,5 +1,5 @@
-use std::fmt;
 use chrono::{DateTime, Local, TimeZone, Utc};
+use std::fmt;
 use tauri::command;
 
 use super::db::DB_CONN;
@@ -29,13 +29,21 @@ impl LogEntry {
 
 impl fmt::Display for LogEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(id: {}, \n\
+        write!(
+            f,
+            "(id: {}, \n\
         process_name: {}, \n\
         window_title: {}, \n\
         start_time: {}, \n\
         temp_end_time: {}, \n\
         end_time: {:?})",
-        self.id, self.process_name, self.window_title, self.start_time, self.temp_end_time, self.end_time)
+            self.id,
+            self.process_name,
+            self.window_title,
+            self.start_time,
+            self.temp_end_time,
+            self.end_time
+        )
     }
 }
 

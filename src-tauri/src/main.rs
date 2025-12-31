@@ -1,11 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-mod windows;
-mod os_utils;
 mod commands;
+mod os_utils;
+mod windows;
 
+use commands::{get_logs_in_range, get_today_logs};
 use tauri::Emitter;
-use commands::{get_today_logs, get_logs_in_range};
 mod db;
 
 use os_utils::get_process_info;
@@ -13,6 +13,7 @@ use tokio::time::{sleep, Duration};
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let handle = app.handle().clone();
             let handle_b = app.handle().clone();

@@ -1,13 +1,11 @@
 import {Temporal} from "@js-temporal/polyfill";
-import Instant = Temporal.Instant;
-
-type OrderingType = "ascending" | "descending" | "a" | "d" | "asc" | "desc";
 
 export class Timing {
   public days: number = 0;
   public hours: number = 0;
   public minutes: number = 0;
   public seconds: number = 0;
+  private formatter = Intl.DateTimeFormat("cs-CZ");
 
   start: Temporal.Instant
   end: Temporal.Instant
@@ -28,7 +26,7 @@ export class Timing {
     return t;
   }
 
-  static from_instant(start: Instant, end: Instant) {
+  /*static from_instant(start: Instant, end: Instant) {
     const t = Timing.empty();
     t.start = start;
     t.end = end;
@@ -36,7 +34,7 @@ export class Timing {
     t.secondsToFull(seconds);
 
     return t;
-  }
+  }*/
 
   static from_seconds(seconds: number) {
     const t = Timing.empty();
@@ -81,13 +79,13 @@ export class Timing {
     return this.days * 86400 + this.hours * 3600 + this.minutes * 60 + this.seconds;
   }
 
-  public totalSeconds(): number {
+  /*public totalSeconds(): number {
     if (this.created_empty) {
       throw new DOMException("This object was originally created as empty, its Instant objects are only placeholders");
     }
 
     return Math.abs(this.start.until(this.end).total("seconds"));
-  }
+  }*/
 
   public resync() {
     this.minutes += Math.floor(this.seconds / 60);
@@ -102,18 +100,26 @@ export class Timing {
     return this;
   }
 
-  public static is_today(date: Date) {
+  /*public static is_today(date: Date) {
     const today = new Date();
 
     return today.toDateString() === date.toDateString();
 
-  }
+  }*/
 
   private stringify(val: number): string {
     return (val < 10 ? "0" : "") + String(val)
   }
 
-  public format() {
+  /*public prettyFormat(options?: DateTimeFormatOptions) {
+    if (options)
+      this.formatter = Intl.DateTimeFormat("cs-CZ", options);
+
+    const seconds = this.collapseToSeconds();
+    return this.formatter.format(seconds);
+  }*/
+
+  public format(/*options?: DateTimeFormatOptions*/) {
     const seconds = this.stringify(this.seconds);
     const minutes = this.stringify(this.minutes);
     const hours = this.stringify(this.hours);
@@ -122,11 +128,11 @@ export class Timing {
         `${hours}:${minutes}:${seconds}`;
   }
 
-  public reformat() {
+  /*public reformat() {
     return this.resync().format();
-  }
+  }*/
 
-  public cmp(other: Timing, method: "start" | "end", ordering: OrderingType = "ascending"): number {
+  /*public cmp(other: Timing, method: "start" | "end", ordering: OrderingType = "ascending"): number {
     // if this is after other => positive
     //
     // if this is before other => negative
@@ -148,5 +154,5 @@ export class Timing {
     } else {
       return sign
     }
-  }
+  }*/
 }
