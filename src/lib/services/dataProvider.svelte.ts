@@ -1,5 +1,5 @@
 import {invoke} from "@tauri-apps/api/core";
-import {Box, type GanttTask} from "$lib/types";
+import {Box, type GanttTask, AsyncBox} from "$lib/types";
 import {resolver} from "$lib/services";
 import {listen} from "@tauri-apps/api/event";
 
@@ -20,7 +20,6 @@ class Provider extends Array {
     listeners: number = 0;
     private unListen: null | (() => void) = null;
     listenerActive = false;
-
     timeRange = $derived.by(() => {
         if (this.data.length === 0) return {start: 0, end: 0, totalSeconds: 0};
 
@@ -30,12 +29,34 @@ class Provider extends Array {
         const end = Math.max(...times);
         return {start, end, totalSeconds: Math.ceil((end - start) / 1000)};
     });
-
     rows = $derived.by(() => {
         return this.uniqueNames()
             .map((name, idx) => (
                 {id: idx, name: name, displayName: resolver.resolve(name)}
             ));
+    });
+    longestTasks = $derived.by(() => {
+        const grouped = Map.groupBy(this.data, item => item.process_name);
+        const result: GanttTask<number>[] = [];
+
+        for (const [procName, rawItems] of grouped) {
+            const row = this.rows.find(r => r.name === procName);
+            if (!row || rawItems.length === 0) continue;
+
+            const mapped = rawItems.map<GanttTask<number>>((x, idx) => ({
+                id: idx,
+                uid: `${x.process_name}-${x.start_time.valueOf()}`,
+                resourceId: row.id,
+                from: x.start_time.valueOf(),
+                to: (x.end_time ?? x.temp_end_time).valueOf(),
+                label: "",
+                classes: "task-item"
+            })).sort((a, b) => a.from - b.from);
+
+            result.push(...this.getLongestChains(mapped));
+        }
+
+        return result;
     });
 
     private getLongestChains(source: GanttTask<number>[]) {
@@ -77,30 +98,6 @@ class Provider extends Array {
         return chains;
     }
 
-    longestTasks = $derived.by(() => {
-        const grouped = Map.groupBy(this.data, item => item.process_name);
-        const result: GanttTask<number>[] = [];
-
-        for (const [procName, rawItems] of grouped) {
-            const row = this.rows.find(r => r.name === procName);
-            if (!row || rawItems.length === 0) continue;
-
-            const mapped = rawItems.map<GanttTask<number>>((x, idx) => ({
-                id: idx,
-                uid: `${x.process_name}-${x.start_time.valueOf()}`,
-                resourceId: row.id,
-                from: x.start_time.valueOf(),
-                to: (x.end_time ?? x.temp_end_time).valueOf(),
-                label: "",
-                classes: "task-item"
-            })).sort((a, b) => a.from - b.from);
-
-            result.push(...this.getLongestChains(mapped));
-        }
-
-        return result;
-    });
-
     subscribe(usePolling: boolean = true, pollingRate: number = 1000) {
         this.listeners += 1;
         if (this.listeners === 1) {
@@ -125,13 +122,13 @@ class Provider extends Array {
     }
 
     private newListener() {
-        this.load();
         listen<LogEntry<string>[]>("activity_change", event => {
             console.log("new items", event.payload);
             event.payload.forEach(entry => {
                 this.data.push(this.stringToDate(entry));
             })
         }).then(fn => this.unListen = fn);
+        this.load();
         this.listenerActive = true;
     }
 
@@ -198,17 +195,34 @@ class Provider extends Array {
     }
 
     public load() {
-        // console.log("load() called...");
-        this.fetchData()
-            .then(item => this.data = item
-                .unwrapElse([], e => this.error = `${e}`));
-        // console.log("this.data()", $state.snapshot(this.data));
+        this.data = this.fetchDataNew()
+            .await()
+            .actionRight(e => this.error = String(e))
+            .unwrapOr([]);
         this.loading = false;
     }
 
+    public load2() {
+        const now = new Date();
+        this.data = this.fetchDataDelta(now)
+            .await()
+            .actionRight(e => this.error = String(e))
+            .unwrapOr([])
+        this.loading = false;
+    }
+
+    public fetchDataDelta(now: Date) {
+        return AsyncBox
+            .fromPromise(invoke<LogEntry<string>[]>("get_logs_delta", {"now": now}))
+            .process<LogEntry<Date>>(v => ({
+            ...v,
+            start_time: new Date(v.start_time),
+            temp_end_time: new Date(v.temp_end_time),
+            end_time: v.end_time ? new Date(v.end_time) : null
+        }));
+    }
+
     private async fetchData() {
-        // console.log("fetchData() called...");
-        const b = new Box<LogEntry<Date>[], unknown>();
         try {
             const r = (await invoke<LogEntry<string>[]>("get_today_logs"))
                 .map<LogEntry<Date>>(item => {
@@ -219,15 +233,22 @@ class Provider extends Array {
                         end_time: item.end_time ? new Date(item.end_time) : null,
                     };
                 });
-            // console.log(r);
-            // b.bindLeft(r);
-            // console.log(b.unwrapOr([]));
-            return b.bindLeft(r);
+            return Box.ok<LogEntry<Date>[]>(r);
         } catch (e) {
-            return b.bindRight(e);
+            return Box.error<LogEntry<Date>[]>(e);
         }
     }
 
+    private fetchDataNew(): AsyncBox<LogEntry<Date>[]> {
+        return AsyncBox
+            .fromPromise(invoke<LogEntry<string>[]>("get_today_logs"))
+            .process<LogEntry<Date>>(item => ({
+                ...item,
+                start_time: new Date(item.start_time),
+                temp_end_time: new Date(item.temp_end_time),
+                end_time: item.end_time ? new Date(item.end_time) : null,
+            }));
+    }
 }
 
 export const dataSource = $state(new Provider());

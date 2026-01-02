@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local, TimeZone, Utc};
+use chrono::{DateTime, Duration, Local, Months, TimeZone, Utc};
 use std::fmt;
 use tauri::command;
 
@@ -76,6 +76,28 @@ pub async fn get_logs_in_range(
     Ok(logs)
 }
 
+fn get_date_delta(
+    base_date: DateTime<Local>,
+    year: i32,
+    month: i32,
+    day: i32,
+) -> Option<DateTime<Local>> {
+    let total_months = (year * 12) + month;
+    let date_after_months = if total_months >= 0 {
+        base_date.checked_add_months(Months::new(total_months as u32))?
+    } else {
+        base_date.checked_sub_months(Months::new(total_months.abs() as u32))?
+    };
+
+    let final_date = if day >= 0 {
+        date_after_months.checked_add_signed(Duration::days(day as i64))?
+    } else {
+        date_after_months.checked_sub_signed(Duration::days(day.abs() as i64))?
+    };
+
+    Some(final_date)
+}
+
 #[command]
 pub async fn get_today_logs() -> Result<Vec<LogEntry>, String> {
     let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
@@ -95,6 +117,39 @@ pub async fn get_today_logs() -> Result<Vec<LogEntry>, String> {
         LogEntry,
         r#"
         SELECT id, process_name, window_title, 
+            start_time as "start_time: chrono::DateTime<chrono::Utc>",
+            temp_end_time as "temp_end_time: chrono::DateTime<chrono::Utc>",
+            end_time as "end_time?: chrono::DateTime<chrono::Utc>"
+        FROM activity_log
+        WHERE start_time >= ? AND end_time <= ?
+        ORDER BY start_time, end_time DESC
+        "#,
+        start_utc,
+        end_utc
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(logs)
+}
+
+#[command]
+pub async fn get_logs_delta(now: DateTime<Local>) -> Result<Vec<LogEntry>, String> {
+    let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
+
+    let midnight_now = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
+    let start_utc = Local
+        .from_local_datetime(&midnight_now)
+        .single()
+        .expect("Ambiguous local time due to DST")
+        .with_timezone(&Utc);
+    let end_utc = Local::now();
+
+    let logs = sqlx::query_as!(
+        LogEntry,
+        r#"
+        SELECT id, process_name, window_title,
             start_time as "start_time: chrono::DateTime<chrono::Utc>",
             temp_end_time as "temp_end_time: chrono::DateTime<chrono::Utc>",
             end_time as "end_time?: chrono::DateTime<chrono::Utc>"

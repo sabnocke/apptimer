@@ -8,7 +8,6 @@ use chrono::{DateTime, Utc};
 use std::future::Future;
 use std::pin::Pin;
 use std::{str::FromStr, time::Duration};
-use tauri::AppHandle;
 use tokio::sync::OnceCell;
 
 pub static DB_CONN: OnceCell<Pool<Sqlite>> = OnceCell::const_new();
