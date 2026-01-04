@@ -1,14 +1,11 @@
 use arc_swap::ArcSwap;
-use sqlx::{Pool, Sqlite};
-use std::sync::{LazyLock, OnceLock};
+use std::sync::{LazyLock};
 
 static LAST_NAME: LazyLock<ArcSwap<String>> =
     LazyLock::new(|| ArcSwap::from_pointee(String::new()));
 
 static LAST_TITLE: LazyLock<ArcSwap<String>> =
     LazyLock::new(|| ArcSwap::from_pointee(String::new()));
-
-// static POOL: OnceLock<Pool<Sqlite>> = OnceLock::new();
 
 #[cfg(target_os = "windows")]
 pub mod windows;

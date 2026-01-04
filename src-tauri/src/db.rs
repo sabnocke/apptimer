@@ -12,10 +12,17 @@ use tokio::sync::OnceCell;
 
 pub static DB_CONN: OnceCell<Pool<Sqlite>> = OnceCell::const_new();
 
+#[allow(dead_code)]
+#[derive(sqlx::FromRow)]
+struct ProcessId {
+    id: i64,
+}
+
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 fn get_migrate(
     pool: &Pool<Sqlite>,
-) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send> {
+) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output=()> + Send>> + Send> {
     Box::new(move || {
         let pool = pool.clone();
         Box::pin(async move {
@@ -28,9 +35,10 @@ fn get_migrate(
 }
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 fn get_migrate(
     pool: &Pool<Sqlite>,
-) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + '_> {
+) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output=()> + Send>> + Send + '_> {
     Box::new(move || {
         let pool = pool.clone();
         Box::pin(async move {
@@ -42,6 +50,7 @@ fn get_migrate(
     })
 }
 
+#[allow(dead_code)]
 pub async fn init_db() -> Pool<Sqlite> {
     let db_url = "sqlite://tracker.db";
 
@@ -77,7 +86,7 @@ pub async fn init_db() -> Pool<Sqlite> {
 ///
 /// returns: Result<bool, Error>
 ///
-pub async fn sync_fallback(/*handle: AppHandle*/) -> Result<LogEntry, String> {
+/*pub async fn sync_fallback(/*handle: AppHandle*/) -> Result<LogEntry, String> {
     let now = Utc::now();
     let pool = DB_CONN.get_or_init(|| async { init_db().await }).await;
 
@@ -102,61 +111,82 @@ pub async fn sync_fallback(/*handle: AppHandle*/) -> Result<LogEntry, String> {
     .map_err(|e| format!("sync_fallback: {}", e));
 
     updated_entry
-}
+}*/
 
+#[allow(dead_code)]
 pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, LogEntry), String> {
     let now = Utc::now();
 
     let pool = DB_CONN.get().expect("Failed to get db connection");
-    // println!("Debug print");
-    let mut updated_entry = LogEntry::default();
-    let maybe_entry = sqlx::query_as!(
+
+    /* let _ = sqlx::query!(
+        "INSERT OR IGNORE INTO processes (name) VALUES (?)",
+        process_name,
+    )
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?; */
+
+    /* let record: ProcessId = sqlx::query_as!(
+        ProcessId,
+        "SELECT id as 'id!' FROM processes WHERE name = ?",
+        process_name
+    )
+        .fetch_one(pool)
+        .await
+        .map_err(|e| e.to_string())?; */
+
+    let record = sqlx::query_as!(
+        ProcessId,
+        r#"
+        INSERT INTO processes (name)
+        VALUES (?)
+        ON CONFLICT(name) DO UPDATE SET name = name
+        RETURNING id;
+        "#,
+        process_name
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+
+    //? This can fail (first entry of the day)
+    let unresolved_update = sqlx::query_as!(
         LogEntry,
         r#"
-        UPDATE activity_log
+        UPDATE events
         SET end_time = ?
         WHERE end_time IS NULL
         RETURNING
-            id,
-            process_name,
-            window_title,
+            id as "id!",
+            (SELECT name FROM processes WHERE processes.id = events.process_id) as "process_name!",
+            window_title as "window_title!",
             start_time as "start_time: DateTime<Utc>",
             temp_end_time as "temp_end_time: DateTime<Utc>",
-            end_time as "end_time?: DateTime<Utc>"
+            end_time as "end_time: DateTime<Utc>"
         "#,
         now
     )
-    .fetch_one(pool)
-    .await;
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("log_switch::update error/warning: {}", e.to_string()));
 
-    match maybe_entry {
-        Ok(entry) => updated_entry = entry,
-        Err(e) => {
-            println!("Warning: Could not update previous entry (Most likely there wasn't one to update). Error: {}",e);
-        }
-    }
-
-    // let res = sqlx::query("UPDATE activity_log SET end_time = ? WHERE end_time IS NULL")
-    //     .bind(now)
-    //     .execute(pool)
-    //     .await?;
-    // println!("Debug print");
     let end_time: Option<DateTime<Utc>> = None;
-
-    let update_entry_2: LogEntry = sqlx::query_as!(
+    let insert = sqlx::query_as!(
         LogEntry,
         r#"
-        INSERT INTO activity_log (process_name, window_title, start_time, temp_end_time, end_time)
+        INSERT INTO events (process_id, window_title, start_time, temp_end_time, end_time)
         VALUES (?, ?, ?, ?, ?)
         RETURNING
                 id,
-                process_name,
+                (SELECT name FROM processes WHERE processes.id = events.process_id) as "process_name!",
                 window_title,
                 start_time as "start_time: DateTime<Utc>",
                 temp_end_time as "temp_end_time: DateTime<Utc>",
                 end_time as "end_time?: DateTime<Utc>"
         "#,
-        process_name,
+        record.id,
         title,
         now,
         now,
@@ -164,16 +194,18 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
     )
     .fetch_one(pool)
     .await
-    .map_err(|e| format!("log_switch -> insert: {}", e.to_string()))?;
+    .map_err(|e| format!("log_switch::insert error/warning: {}", e.to_string()))?;
 
-    // println!("Debug print");
-    /*sqlx::query("INSERT INTO activity_log (process_name, window_title, start_time, temp_end_time) VALUES (?, ?, ?, ?)")
-    .bind(process_name)
-    .bind(title)
-    .bind(now)
-    .bind(now)
-    .execute(pool)
-    .await?;*/
 
-    Ok((updated_entry, update_entry_2))
+    let update = match unresolved_update {
+        Ok(data) => {
+            data.unwrap_or(LogEntry::default())
+        },
+        Err(e) => {
+            println!("{}", e);
+            LogEntry::default()
+        }
+    };
+
+    Ok((update, insert))
 }

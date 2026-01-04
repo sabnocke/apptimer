@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, Local, Months, TimeZone, Utc};
+use chrono::{DateTime, Local, TimeZone, Utc};
 use std::fmt;
 use tauri::command;
 
@@ -48,35 +48,7 @@ impl fmt::Display for LogEntry {
 }
 
 //TODO these might not return entries with end_time == null
-
-#[command]
-pub async fn get_logs_in_range(
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<Vec<LogEntry>, String> {
-    let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
-
-    let logs = sqlx::query_as!(
-        LogEntry,
-        r#"SELECT id, process_name, window_title,
-        start_time as "start_time: chrono::DateTime<chrono::Utc>",
-        temp_end_time as "temp_end_time: chrono::DateTime<chrono::Utc>",
-        end_time as "end_time?: chrono::DateTime<chrono::Utc>"
-        FROM activity_log
-         WHERE start_time >= ? AND end_time <= ?
-         ORDER BY start_time, end_time DESC
-        "#,
-        start,
-        end,
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    Ok(logs)
-}
-
-fn get_date_delta(
+/* fn get_date_delta(
     base_date: DateTime<Local>,
     year: i32,
     month: i32,
@@ -96,7 +68,7 @@ fn get_date_delta(
     };
 
     Some(final_date)
-}
+} */
 
 #[command]
 pub async fn get_today_logs() -> Result<Vec<LogEntry>, String> {
@@ -116,11 +88,15 @@ pub async fn get_today_logs() -> Result<Vec<LogEntry>, String> {
     let logs = sqlx::query_as!(
         LogEntry,
         r#"
-        SELECT id, process_name, window_title, 
-            start_time as "start_time: chrono::DateTime<chrono::Utc>",
-            temp_end_time as "temp_end_time: chrono::DateTime<chrono::Utc>",
-            end_time as "end_time?: chrono::DateTime<chrono::Utc>"
-        FROM activity_log
+        SELECT
+            e.id as "id!",
+            p.name as process_name,
+            e.window_title,
+            e.start_time as "start_time: chrono::DateTime<chrono::Utc>",
+            e.temp_end_time as "temp_end_time: chrono::DateTime<chrono::Utc>",
+            e.end_time as "end_time?: chrono::DateTime<chrono::Utc>"
+        FROM events e
+        JOIN processes p ON e.process_id = p.id
         WHERE start_time >= ? AND end_time <= ?
         ORDER BY start_time, end_time DESC
         "#,
@@ -149,11 +125,15 @@ pub async fn get_logs_delta(now: DateTime<Local>) -> Result<Vec<LogEntry>, Strin
     let logs = sqlx::query_as!(
         LogEntry,
         r#"
-        SELECT id, process_name, window_title,
-            start_time as "start_time: chrono::DateTime<chrono::Utc>",
-            temp_end_time as "temp_end_time: chrono::DateTime<chrono::Utc>",
-            end_time as "end_time?: chrono::DateTime<chrono::Utc>"
-        FROM activity_log
+        SELECT
+            e.id as "id!",
+            p.name as process_name,
+            e.window_title,
+            e.start_time as "start_time: chrono::DateTime<chrono::Utc>",
+            e.temp_end_time as "temp_end_time: chrono::DateTime<chrono::Utc>",
+            e.end_time as "end_time?: chrono::DateTime<chrono::Utc>"
+        FROM events e
+        JOIN processes p ON e.process_id = p.id
         WHERE start_time >= ? AND end_time <= ?
         ORDER BY start_time, end_time DESC
         "#,
@@ -165,4 +145,21 @@ pub async fn get_logs_delta(now: DateTime<Local>) -> Result<Vec<LogEntry>, Strin
     .map_err(|e| e.to_string())?;
 
     Ok(logs)
+}
+
+#[command]
+pub async fn get_unique_names(when: Option<DateTime<Local>>) -> Result<Vec<String>, String> {
+    let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
+    let result = if let Some(some_when) = when {
+        get_logs_delta(some_when)
+        .await?
+        .into_iter()
+        .map(|item| item.process_name)
+        .collect::<Vec<String>>()
+    } else {
+        sqlx::query_scalar!(
+            "SELECT name FROM processes"
+        ).fetch_all(pool).await.map_err(|e| e.to_string())?
+    };
+    Ok(result)
 }

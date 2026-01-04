@@ -14,3 +14,13 @@ This template should help get you started developing with Tauri, SvelteKit and T
 
 - Linux:
 > `bun run devel` - tested on kde/eos
+
+# ToDo
+
+- [ ] Repair the layout (controls don't need that much space)
+- [ ] Add the ability to change date
+- [ ] Add steam name resolver
+- [ ] ?Add treemap for monthly view
+- [ ] What's next?
+- [ ] Add ability to change some of the data from the frontend
+- [ ] Figure out categorization

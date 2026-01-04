@@ -3,7 +3,6 @@ use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 
 use super::{LAST_NAME, LAST_TITLE};
-use crate::db;
 use crate::db::log_switch;
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -55,22 +54,9 @@ pub async fn get_kde_active_window() -> Option<WindowInfo> {
     })
 }
 
-/*static LAST_NAME: LazyLock<ArcSwap<String>> = LazyLock::new(|| {
-    ArcSwap::from_pointee(String::new());
-});
-
-static LAST_TITLE: LazyLock<ArcSwap<String>> = LazyLock::new(|| {
-    ArcSwap::from_pointee(String::new())
-});
-static POOL: LazyLock<Pool<Sqlite>> = LazyLock::new(|| {
-    db::init_db().await.expect("failed to init db");
-});*/
-
 pub async fn get_process_info(handle: &AppHandle) {
     let last_name = LAST_NAME.load();
     let last_title = LAST_TITLE.load();
-
-    // let default = (String::default(), String::default());
 
     if let Some(window) = get_kde_active_window().await {
         if **last_name != window.process_name || **last_title != window.title {
@@ -84,34 +70,8 @@ pub async fn get_process_info(handle: &AppHandle) {
                 Err(e) => println!("Error: {}", e),
             }
 
-            /*if let Err(e) = db::log_switch(&window.process_name, &window.title).await {
-                eprintln!("DB Error: {}", e);
-            }
-
-            let _ = handle.emit("activity_change", &window);*/
-
             LAST_NAME.store(Arc::new(window.process_name));
             LAST_TITLE.store(Arc::new(window.title));
         }
     }
 }
-
-// async fn linux_tracking_loop(
-//     pool: &Pool<Sqlite>,
-//     last_process: String,
-//     last_title: String,
-// ) -> (String, String) {
-//     if let Some(window) = tracker::get_kde_active_window().await {
-//         if window.process_name != last_process  || window.title != last_title {
-//             println!("Switch! {} -> {}", last_process, window.process_name);
-//
-//             if let Err(e) = db::log_switch(&pool, &window.process_name, &window.title).await {
-//                 eprintln!("DB Error: {}", e);
-//             }
-//
-//             let _ = handle.emit("activity_change", &window);
-//
-//             (window.process_name, window.title)
-//         }
-//     }
-// }
