@@ -24,3 +24,5 @@ This template should help get you started developing with Tauri, SvelteKit and T
 - [ ] What's next?
 - [ ] Add ability to change some of the data from the frontend
 - [ ] Figure out categorization
+- [ ] [BUG]: Once closed and reopened the close button (and others) don't work
+    - Resizing resolves the issue
