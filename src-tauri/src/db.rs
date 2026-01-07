@@ -4,7 +4,7 @@ use sqlx::{
 };
 
 use crate::commands::LogEntry;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, TimeZone, Utc};
 use std::future::Future;
 use std::pin::Pin;
 use std::{str::FromStr, time::Duration};
@@ -77,41 +77,35 @@ pub async fn init_db() -> Pool<Sqlite> {
         .clone()
 }
 
-/// Intended as a failsafe in case of sudden (and, in fact, any) shutdowns by periodically storing time in temp value
-/// this can then be used as an end time, if it doesn't exist
-///
-/// # Arguments
-///
-/// * `pool`: the connection to a SQLite database
-///
-/// returns: Result<bool, Error>
-///
-/*pub async fn sync_fallback(/*handle: AppHandle*/) -> Result<LogEntry, String> {
-    let now = Utc::now();
-    let pool = DB_CONN.get_or_init(|| async { init_db().await }).await;
+pub async fn get_today_events_count() -> Result<i64, String> {
+    let pool = DB_CONN.get_or_init(init_db).await;
 
-    let updated_entry = sqlx::query_as!(
-        LogEntry,
-        r#"
-        UPDATE activity_log
-        SET temp_end_time = ?
-        WHERE end_time IS NULL
-        RETURNING
-            id,
-            window_title,
-            process_name,
-            start_time as "start_time: DateTime<Utc>",
-            temp_end_time as "temp_end_time: DateTime<Utc>",
-            end_time as "end_time?: DateTime<Utc>"
-        "#,
-        now
-    )
-    .fetch_one(pool)
-    .await
-    .map_err(|e| format!("sync_fallback: {}", e));
+    let now_local = Local::now();
+    let midnight_local_now = now_local
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
 
-    updated_entry
-}*/
+    let start_utc = Local
+        .from_local_datetime(&midnight_local_now)
+        .single()
+        .expect("Ambiguous local time due to DST")
+        .with_timezone(&Utc);
+
+    let end_utc = Utc::now();
+
+    let result: (i64,) = sqlx::query_as(r#"
+            SELECT COUNT(*) FROM events
+            WHERE start_time >= ? AND end_time <= ?
+        "#)
+        .bind(start_utc)
+        .bind(end_utc)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(result.0)
+}
 
 #[allow(dead_code)]
 pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, LogEntry), String> {
@@ -149,8 +143,7 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
     .fetch_one(pool)
     .await
     .map_err(|e| e.to_string())?;
-
-
+    
     //? This can fail (first entry of the day)
     let unresolved_update = sqlx::query_as!(
         LogEntry,
@@ -172,6 +165,7 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
     .await
     .map_err(|e| format!("log_switch::update error/warning: {}", e.to_string()));
 
+    
     let end_time: Option<DateTime<Utc>> = None;
     let insert = sqlx::query_as!(
         LogEntry,
@@ -196,6 +190,10 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
     .await
     .map_err(|e| format!("log_switch::insert error/warning: {}", e.to_string()))?;
 
+    match get_today_events_count().await {
+        Ok(count) => {println!("- today events count: {}", count)}
+        Err(e) => println!("- error while getting today events count: {}", e),
+    }
 
     let update = match unresolved_update {
         Ok(data) => {

@@ -16,3 +16,7 @@ vite.config.ts.timestamp-*
 /src-tauri/tracker.db
 # mapping.json is softlink to another file
 mapping.json
+
+src-tauri/tracker.bak.db
+
+src-tauri/tracker.db-journal

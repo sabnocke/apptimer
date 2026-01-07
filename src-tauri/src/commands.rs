@@ -144,6 +144,8 @@ pub async fn get_logs_delta(now: DateTime<Local>) -> Result<Vec<LogEntry>, Strin
     .await
     .map_err(|e| e.to_string())?;
 
+    println!("- length of fetched logs: {}", logs.len());
+
     Ok(logs)
 }
 

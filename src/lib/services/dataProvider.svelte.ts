@@ -1,7 +1,8 @@
 import {invoke} from "@tauri-apps/api/core";
-import {Box, type GanttTask, AsyncBox} from "$lib/types";
+import {Box, type GanttTask, AsyncBox, SuperArray} from "$lib/types";
 import {resolver} from "$lib/services";
 import {listen} from "@tauri-apps/api/event";
+import {getDayLogs, getUniqueNames} from "$lib/services";
 
 export interface LogEntry<T> {
     id: number,
@@ -12,14 +13,27 @@ export interface LogEntry<T> {
     end_time: T | null
 }
 
+interface IRow {
+    id: number,
+    name: string,
+    displayName: string,
+}
+
 class Provider extends Array {
     data = $state<LogEntry<Date>[]>([]);
-    loading = $state(true);
+
+    waitFetch: boolean = $state(true);
+    waitChain: boolean = $state(true);
+    waitFinal: boolean = $state(true);
+    allSet: boolean = $derived(!(this.waitFetch && this.waitChain && this.waitFinal))
+
     error = $state<string | null>(null);
+
     intervalId: number | null = null;
     listeners: number = 0;
     private unListen: null | (() => void) = null;
     listenerActive = false;
+
     timeRange = $derived.by(() => {
         if (this.data.length === 0) return {start: 0, end: 0, totalSeconds: 0};
 
@@ -30,10 +44,14 @@ class Provider extends Array {
         return {start, end, totalSeconds: Math.ceil((end - start) / 1000)};
     });
     rows = $derived.by(() => {
-        return this.uniqueNames()
-            .map((name, idx) => (
-                {id: idx, name: name, displayName: resolver.resolve(name)}
-            ));
+        return this
+            .uniqueNames()
+            .process<IRow>((name, idx) => ({
+                id: idx,
+                name: name,
+                displayName: resolver.resolve(name)
+            }))
+            .andThen(() => this.waitFinal = false)
     });
     longestTasks = $derived.by(() => {
         const grouped = Map.groupBy(this.data, item => item.process_name);
@@ -41,7 +59,7 @@ class Provider extends Array {
 
         for (const [procName, rawItems] of grouped) {
             const row = this.rows.find(r => r.name === procName);
-            if (!row || rawItems.length === 0) continue;
+            if (rawItems.length === 0) continue;
 
             const mapped = rawItems.map<GanttTask<number>>((x, idx) => ({
                 id: idx,
@@ -55,7 +73,7 @@ class Provider extends Array {
 
             result.push(...this.getLongestChains(mapped));
         }
-
+        this.waitChain = false;
         return result;
     });
 
@@ -148,8 +166,7 @@ class Provider extends Array {
         if (usePolling) {
             this.load();
             this.intervalId = setInterval(() => this.load(), pollInterval);
-        }
-        else if (useListen)
+        } else if (useListen)
             this.newListener();
     }
 
@@ -158,8 +175,7 @@ class Provider extends Array {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
-        }
-        else if (this.listenerActive)
+        } else if (this.listenerActive)
             this.removeListener();
 
     }
@@ -169,62 +185,23 @@ class Provider extends Array {
         this.load();
     }
 
-    get length(): number {
-        if (this.loading) return 0;
-        return this.data.length;
-    }
-
-    map<T>(callbackFn: (value: LogEntry<Date>, index: number, array: LogEntry<Date>[]) => T) {
-        if (this.loading) return [];
-        return this.data.map(callbackFn);
-    }
-
-    filter(predicate: (value: LogEntry<Date>, index: number, array: LogEntry<Date>[]) => boolean) {
-        if (this.loading) return [];
-        return this.data.filter(predicate);
-    }
-
-    flatMap<T>(callbackFn: (value: LogEntry<Date>, index: number, array: LogEntry<Date>[]) => T | readonly T[]): T[] {
-        if (this.loading) return [];
-        return this.data.flatMap(callbackFn);
-    }
-
-    uniqueNames(select: (item: LogEntry<Date>) => string = x => x.process_name) {
-        if (this.loading) return [];
-        return [...new Set(this.data.map(select))];
+    uniqueNames(): AsyncBox<string[]> {
+        return AsyncBox.fromPromise(getUniqueNames());
     }
 
     public load() {
-        this.data = this.fetchDataNew()
-            .await()
-            .actionRight(e => this.error = String(e))
-            .unwrapOr([]);
-        this.loading = false;
+        this.fetchData().then(b => {
+            b.action(
+                l => this.data = l,
+                r => this.error = String(r)
+            )
+        })
+        this.waitFetch = false;
     }
 
-    public load2() {
-        const now = new Date();
-        this.data = this.fetchDataDelta(now)
-            .await()
-            .actionRight(e => this.error = String(e))
-            .unwrapOr([])
-        this.loading = false;
-    }
-
-    public fetchDataDelta(now: Date) {
-        return AsyncBox
-            .fromPromise(invoke<LogEntry<string>[]>("get_logs_delta", {"now": now}))
-            .process<LogEntry<Date>>(v => ({
-            ...v,
-            start_time: new Date(v.start_time),
-            temp_end_time: new Date(v.temp_end_time),
-            end_time: v.end_time ? new Date(v.end_time) : null
-        }));
-    }
-
-    private async fetchData() {
+    public async fetchData(): Promise<Box<SuperArray<LogEntry<Date>>, unknown>> {
         try {
-            const r = (await invoke<LogEntry<string>[]>("get_today_logs"))
+            const r = (await getDayLogs())
                 .map<LogEntry<Date>>(item => {
                     return {
                         ...item,
@@ -233,21 +210,10 @@ class Provider extends Array {
                         end_time: item.end_time ? new Date(item.end_time) : null,
                     };
                 });
-            return Box.ok<LogEntry<Date>[]>(r);
+            return Box.ok(SuperArray.from(r));
         } catch (e) {
-            return Box.error<LogEntry<Date>[]>(e);
+            return Box.error(e);
         }
-    }
-
-    private fetchDataNew(): AsyncBox<LogEntry<Date>[]> {
-        return AsyncBox
-            .fromPromise(invoke<LogEntry<string>[]>("get_today_logs"))
-            .process<LogEntry<Date>>(item => ({
-                ...item,
-                start_time: new Date(item.start_time),
-                temp_end_time: new Date(item.temp_end_time),
-                end_time: item.end_time ? new Date(item.end_time) : null,
-            }));
     }
 }
 

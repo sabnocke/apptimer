@@ -15,9 +15,6 @@ use tauri::{
     Manager, RunEvent, WindowEvent, AppHandle
 };
 
-
-
-
 fn menu_event(app: &AppHandle, event: MenuEvent) {
     match event.id.as_ref() { 
         "quit" => app.exit(0),

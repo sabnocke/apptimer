@@ -25,12 +25,11 @@ class NameResolver {
 
     constructor() {
         this.load().then(b => {
-            b.mapRight(e => console.error(e));
+            b.actionRight(e => console.error(e));
         });
     }
 
-    private async load() {
-        const b = new Box<boolean>();
+    private async load(): Promise<Box<boolean, unknown>> {
         try {
             if (!await exists("", {baseDir: BaseDirectory.AppConfig})) {
                 await mkdir("", {baseDir: BaseDirectory.AppConfig});
@@ -48,19 +47,18 @@ class NameResolver {
                 this.mapping.set(key.toLowerCase(), String(val));
             });
 
-            return b.bindLeft(true);
+            return Box.ok(true);
         } catch (e) {
             console.log(e);
-            return b.bindRight(String(e));
+            return Box.error(e);
         }
     }
 
     //? Will be used later
-    async updateMapping(key: string, value: string) {
-        const b = new Box<boolean>()
+    async updateMapping(key: string, value: string): Promise<Box<boolean, unknown>> {
         try {
             if (!(this._locationExists && this._mappingExists)) {
-                return b.bindLeft(false);
+                return Box.ok(false);
             }
 
             this.mapping.set(key, value);
@@ -68,9 +66,9 @@ class NameResolver {
                 JSON.stringify(this.mapping, null, 2),
                 {baseDir: BaseDirectory.AppConfig});
 
-            return b.bindLeft(true);
+            return Box.ok(true);
         } catch (e) {
-            return b.bindRight(e)
+            return Box.error(e)
         }
     }
 
