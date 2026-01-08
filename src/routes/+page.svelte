@@ -6,11 +6,6 @@
     import Listing from "$lib/Listing.svelte";
     import Loader from "$lib/Loader.svelte";
     import {goto} from "$app/navigation";
-    import {onMount} from "svelte";
-
-    /*onMount(() => {
-        dataSource.load();
-    })*/
 
     $effect(() => {
         return dataSource.subscribe();
@@ -19,8 +14,6 @@
     const total = $derived.by(() => {
         return Timing.from_seconds(dataSource.timeRange.totalSeconds)
     });
-
-
 
     const formatter = Intl.DateTimeFormat("cs-CZ", {
         hour: "2-digit",
@@ -31,21 +24,39 @@
         year: "numeric",
         hour12: false
     });
-
-    $effect(() => {
-        console.log(dataSource.loading.allSet);
-    });
-
 </script>
 
 <main class="container">
-    {#if dataSource.loading.allSet}
+    {#await dataSource.longestTasks}
         <div>
             <div class="viewer-place">
                 <button onclick={() => goto("/dataDisplay")}>Data Display</button>
             </div>
             <Loader />
         </div>
+    {:then _value}
+        <div class="controls grid-container">
+            <div class="grid-item-1">
+                <div class="sub-flex-1">
+                    <div id="flex-item-1">{formatter.format(dataSource.timeRange.start)}</div>
+                    <div id="flex-item-2">-</div>
+                    <div id="flex-item-3">{formatter.format(dataSource.timeRange.end)}</div>
+                </div>
+                <div id="flex-item-4">Total time: {total.format()}</div>
+                <button onclick={() => goto("/dataDisplay")}>Data Display</button>
+            </div>
+            <div class="grid-item-2"><RadioButtons /></div>
+        </div>
+        <div class="display">
+            <TimelineTwo />
+            <Listing />
+        </div>
+    {:catch error}
+        <div>{error}</div>
+        <div>{dataSource.error}</div>
+    {/await}
+    <!--{#if dataSource.loading.allSet}
+
     {:else if dataSource.error}
         <div>{dataSource.error}</div>
     {:else}
@@ -65,7 +76,7 @@
             <TimelineTwo />
             <Listing />
         </div>
-    {/if}
+    {/if}-->
 </main>
 
 <style lang="scss">

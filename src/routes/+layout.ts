@@ -4,3 +4,16 @@
 // See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
 export const ssr = false;
 export const prerender = true;
+
+if (typeof window !== "undefined") {
+    const observer = window.ResizeObserver;
+    window.ResizeObserver = class extends observer {
+        constructor(callback: any) {
+            super((entries, observer) => {
+                window.requestAnimationFrame(() => {
+                    callback(entries, observer);
+                })
+            });
+        }
+    }
+}

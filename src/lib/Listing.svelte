@@ -1,7 +1,9 @@
 <script lang="ts">
-    import {dataSource, resolver} from "$lib/services";
+    //TODO change getUniqueNames() to give back names based on current day, giving nothing if it's start
+
+    import {dataSource} from "$lib/services";
     import OneListing from "$lib/OneListing.svelte";
-    import {SuperMap, Timing} from "$lib/types";
+    import {AsyncBox, type GanttTask, Timing} from "$lib/types";
 
     $effect(() => {
         return dataSource.subscribe(false);
@@ -15,48 +17,69 @@
         time: Timing
     }
 
+    const errorLog = $state(new Set<string>());
+    const displayLog = $derived([...errorLog].join("\n"));
+
     const parsedData = $derived.by(() => {
-        const out = new SuperMap<string, DisplayData>();
-        dataSource.uniqueNames().forEach((name, id) => {
-            const f = dataSource.filter(d => d.process_name === name);
-            const m = f.map(d => new Timing(d.start_time, d.end_time ?? d.temp_end_time));
-            const begin = Math.min(...f.map(x => x.start_time.valueOf()));
-            const end = Math.max(...f.map(x => x.start_time.valueOf()));
+        return dataSource.uniqueNames().mapLeft(all => {
+            const boxes = all.map((name, id) => {
+                const f: AsyncBox<GanttTask<number>[], any> = dataSource.longestTasks.filter(d => d.processName === name);
+                const m: AsyncBox<Timing[], any> = f.process(d => Timing.from_valueOf(d.from, d.to));
 
-            const result = m.reduce((acc, item) => acc.add(item));
-            const item: DisplayData = {
-                id,
-                name,
-                start: new Date(begin),
-                end: new Date(end),
-                time: result.resync()
-            }
+                const begin: AsyncBox<number, any> = f.mapLeft(arr => Math.min(...arr.map(x => x.from)));
+                const end: AsyncBox<number, any> = f.mapLeft(arr => Math.max(...arr.map(x => x.to)));
+                const sum: AsyncBox<Timing, any> = m
+                    .reduce((acc, item) => {
+                        acc.add(item);
+                        return acc;
+                    }, new Timing())
+                    .tapRight(e => console.warn(e));
 
-            out.set(resolver.resolve(name), item);
-        });
+                return AsyncBox.join(begin, end, sum).mapLeft<DisplayData>(([begin, end, sum]) => {
+                    console.log("- check sum: ", sum, sum.resync());
 
-        return out;
+                    return {
+                        id,
+                        name,
+                        start: new Date(begin),
+                        end: new Date(end),
+                        time: sum.resync()
+                    }
+                }).tap(
+                    v => console.warn(v.time),
+                    e => console.warn(e)
+                );
+            });
+
+            return AsyncBox.join(...boxes)
+        }).flatten()
     });
 
-    const total = $derived.by(() => {
-        const t_seconds = parsedData
-            .values()
-            .reduce<number>((acc, item) => acc + item.time.collapseToSeconds(), 0);
-        return Timing.from_seconds(t_seconds);
-    });
+    const total = $derived(
+        parsedData
+            .process(v => v.time.collapseToSeconds())
+            .reduce((acc, item) => acc + item, 0)
+            .mapLeft(x => Timing.from_seconds(x))
+    );
 
     function getPercentage(up: Timing, down: Timing): string {
         return ((up.collapseToSeconds() / down.collapseToSeconds()) * 100).toFixed(2) + "%";
     }
 
-    const sorted = $derived([...parsedData.entries()].sort((a, b) => {
-        const [, t0] = a;
-        const [, t1] = b;
-        const sa = t0.time.collapseToSeconds() / total.collapseToSeconds();
-        const sb = t1.time.collapseToSeconds() / total.collapseToSeconds();
+    const sorted = $derived.by(() => {
+        return parsedData.mapLeft(arr => arr.sort((a, b) => {
+            const sa = a.time.collapseToSeconds();
+            const sb = b.time.collapseToSeconds();
+            return sb - sa;
+        }))
+    })
 
-        return sb - sa;
-    }));
+    function* getIter(src: DisplayData[]) {
+        for (const item of src) {
+            yield item;
+        }
+    }
+
 </script>
 
 <style lang="scss">
@@ -112,16 +135,28 @@
     </div>
 
     <div class="display">
-        {#each sorted as [name, display] (display.id)}
-            {@const time = display.time}
-            <OneListing
-                    name={name}
-                    time={time.format()}
-                    percentage={getPercentage(time, total)}
-                    start={display.end}
-                    end={display.end}
-            />
-        {/each}
+        {#await AsyncBox.join(sorted, total) then value}
+            {@const maybeValues = value.disband()}
+            {#if !maybeValues.isOk}
+                <div>Box's string error: {errorLog}</div>
+            {:else}
+                {@const [sortedValues, bT] = maybeValues.unwrapOk()}
+                {@const values = getIter(sortedValues.unwrapOk())}
+                {@const t = bT.unwrapOk()}
+
+                {#each values as {id, name, time, start, end} (id)}
+                    <OneListing
+                            name={name}
+                            time={time.format()}
+                            percentage={getPercentage(time, t)}
+                            start={start}
+                            end={end}
+                    />
+                {/each}
+            {/if}
+        {:catch e}
+            <div>{String(e)}</div>
+        {/await}
     </div>
 
 </div>

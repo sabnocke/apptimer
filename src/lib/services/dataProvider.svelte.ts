@@ -1,5 +1,4 @@
-import {invoke} from "@tauri-apps/api/core";
-import {Box, type GanttTask, AsyncBox, SuperArray} from "$lib/types";
+import {Box, type GanttTask, AsyncBox} from "$lib/types";
 import {resolver} from "$lib/services";
 import {listen} from "@tauri-apps/api/event";
 import {getDayLogs, getUniqueNames} from "$lib/services";
@@ -21,12 +20,6 @@ interface IRow {
 
 class Provider extends Array {
     data = $state<LogEntry<Date>[]>([]);
-
-    waitFetch: boolean = $state(true);
-    waitChain: boolean = $state(true);
-    waitFinal: boolean = $state(true);
-    allSet: boolean = $derived(!(this.waitFetch && this.waitChain && this.waitFinal))
-
     error = $state<string | null>(null);
 
     intervalId: number | null = null;
@@ -50,30 +43,35 @@ class Provider extends Array {
                 id: idx,
                 name: name,
                 displayName: resolver.resolve(name)
-            }))
-            .andThen(() => this.waitFinal = false)
+            }));
     });
     longestTasks = $derived.by(() => {
         const grouped = Map.groupBy(this.data, item => item.process_name);
-        const result: GanttTask<number>[] = [];
+        let result = AsyncBox.ok<GanttTask<number>[], string>([]);
 
         for (const [procName, rawItems] of grouped) {
-            const row = this.rows.find(r => r.name === procName);
             if (rawItems.length === 0) continue;
 
-            const mapped = rawItems.map<GanttTask<number>>((x, idx) => ({
-                id: idx,
-                uid: `${x.process_name}-${x.start_time.valueOf()}`,
-                resourceId: row.id,
-                from: x.start_time.valueOf(),
-                to: (x.end_time ?? x.temp_end_time).valueOf(),
-                label: "",
-                classes: "task-item"
-            })).sort((a, b) => a.from - b.from);
+            const row = this.rows
+                .find(r => r.name === procName)
+                .mapRight(() => `Row not found: ${procName}`);
 
-            result.push(...this.getLongestChains(mapped));
+            const mapped = row.mapLeft(r =>
+            rawItems.map<GanttTask<number>>((value, index) => ({
+                id: index,
+                uid: `${value.process_name}-${value.start_time.valueOf()}`,
+                resourceId: r.id,
+                from: value.start_time.valueOf(),
+                to: (value.end_time ?? value.temp_end_time).valueOf(),
+                label: "",
+                classes: "task-item",
+                processName: value.process_name,
+            })));
+
+            result = result.zipWith(mapped, (a, b) =>
+                [...a, ...this.getLongestChains(b)]
+            );
         }
-        this.waitChain = false;
         return result;
     });
 
@@ -90,7 +88,7 @@ class Provider extends Array {
         let currentStart = sorted[0];
         let currentTo = sorted[0].to;
 
-        for (let i = 1; i < sorted.length; i++) { //! potentially might miss something (<= -> <)
+        for (let i = 1; i < sorted.length; i++) {
             const nextTask = sorted[i];
 
             if (!nextTask) continue;
@@ -157,12 +155,11 @@ class Provider extends Array {
         } else {
             return false;
         }
-
         return true;
     }
 
     private startPolling(usePolling: boolean = true, useListen: boolean = false, pollInterval: number = 1000) {
-        console.log("Polling started...", usePolling, useListen);
+        // console.log("Polling started...", usePolling, useListen);
         if (usePolling) {
             this.load();
             this.intervalId = setInterval(() => this.load(), pollInterval);
@@ -171,13 +168,12 @@ class Provider extends Array {
     }
 
     private stopPolling() {
-        console.log("Polling ended...");
+        // console.log("Polling ended...");
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
         } else if (this.listenerActive)
             this.removeListener();
-
     }
 
     constructor() {
@@ -190,16 +186,13 @@ class Provider extends Array {
     }
 
     public load() {
-        this.fetchData().then(b => {
-            b.action(
-                l => this.data = l,
-                r => this.error = String(r)
-            )
-        })
-        this.waitFetch = false;
+        this.fetchData().then(b => b.action(
+            v => this.data = v,
+            e => this.error = String(e)
+        ));
     }
 
-    public async fetchData(): Promise<Box<SuperArray<LogEntry<Date>>, unknown>> {
+    public async fetchData(): Promise<Box<Array<LogEntry<Date>>, unknown>> {
         try {
             const r = (await getDayLogs())
                 .map<LogEntry<Date>>(item => {
@@ -210,7 +203,7 @@ class Provider extends Array {
                         end_time: item.end_time ? new Date(item.end_time) : null,
                     };
                 });
-            return Box.ok(SuperArray.from(r));
+            return Box.ok(r);
         } catch (e) {
             return Box.error(e);
         }

@@ -2,7 +2,7 @@
     import {dataSource} from "$lib/services/dataProvider.svelte";
     import {resolver} from "$lib/services/nameResolver.svelte";
     import type {Action} from "svelte/action";
-    import type {Attachment} from "svelte/attachments";
+    import {AsyncBox} from "$lib/types";
 
     $effect(() => {
         return dataSource.subscribe(false);
@@ -10,15 +10,8 @@
 
     let zoom = $state(40);
     let containerWidth = $state(1000);
-
-    let scrollTop = $state(0);
     let scrollLeft = $state(0);
-
     let secondsPerTick = $state(10);
-
-    let rowsWrapperHeight = $state(0);
-
-    let staticHeader = $state({} as HTMLDivElement);
     let sidebarWidth = $state(0);
     let tickWidth = $state(0);
     let headerCharWidth = $state(0);
@@ -29,8 +22,6 @@
     );
 
     let visibleTasks = $derived.by(() => {
-        if (!dataSource.longestTasks) return [];
-
         const bufferPx = containerWidth;
 
         const startPx = Math.max(scrollLeft - bufferPx);
@@ -76,11 +67,10 @@
         return ((time - range.start) / 1000) * zoom;
     }
 
-    let headerEl: HTMLDivElement;
-    let bodyEl: HTMLDivElement;
+    let headerEl: HTMLDivElement = $state({} as HTMLDivElement);
+    let bodyEl: HTMLDivElement = $state({} as HTMLDivElement);
 
     function handleGlobalWheel(e: WheelEvent) {
-
         const isHeaderHover = (e.target as HTMLElement).closest(".header-container");
         const isHorizontalIntent = e.shiftKey || e.ctrlKey || isHeaderHover;
 
@@ -102,9 +92,10 @@
     function handleNativeScroll(e: Event) {
         const target = e.target as HTMLDivElement;
         scrollLeft = target.scrollLeft;
-        scrollTop = target.scrollTop;
+        // scrollTop = target.scrollTop;
 
-        if (headerEl) headerEl.scrollLeft = scrollLeft;
+        if (headerEl)
+            headerEl.scrollLeft = scrollLeft;
     }
 
     /*function onResize(node: HTMLElement) {
@@ -137,79 +128,95 @@
     };
 
 
-    $effect(() => {
+    /*$effect(() => {
         console.log(visibleTasks);
         console.log(sidebarWidth, tickWidth);
         console.log(resolver.locationExists, resolver.mappingExists)
-    })
+    })*/
 
 </script>
 
-<div class="timeline-layout" onwheel={handleGlobalWheel}>
-    <div class="controls">
-        <label>
-            Zoom:
-            <input type="range" min="5" max="200" bind:value={zoom}/>
-        </label>
-        <div class="stats">
-            Visible: {visibleTasks.length} / {dataSource.longestTasks.length}
-            ScrollLeft: {scrollLeft}
-        </div>
-    </div>
+{#await
+    AsyncBox.join(
+        dataSource.rows,
+        dataSource.longestTasks.prop("length"),
+        visibleTasks
+    ) then cBox}
+    {@const box = cBox.disband()}
+    {#if !box.isOk}
+        <div>Box's else: {box.mapRight(e => String(e))}</div>
+    {:else}
+        {@const [bRows, bTasksLength, bVTasks] = box.unwrapOk()}
+        {@const rows = bRows.consoleError().unwrapOr([])}
+        {@const tasksLength = bTasksLength.consoleError().unwrapOr(0)}
+        {@const vTasks = bVTasks.consoleError().unwrapOr([])}
 
-    <div class="header-container" bind:this={headerEl}>
-        <div class="sidebar-placeholder" bind:this={staticHeader} bind:clientWidth={sidebarWidth}>Application</div>
-
-        <div class="header-track" style="width: {totalWidth}px">
-            <div class="template-tick-time" use:updateCharWidth>M</div>
-            {#each visibleTicks as tick, i}
-
-                {@const tickX = getPos(tick)}
-                {@const formattedTime = formatter.format(tick)}
-                {@const nextTick = visibleTicks[i + 1]}
-                {@const tickSpace = getPos(nextTick) - tickX || 0}
-                {@const offLeft = scrollLeft - tickX}
-                {@const buffer = 10}
-                {@const overlap = Math.max(0, offLeft)}
-                {@const boundary = tickSpace - overlap}
-                {@const textWidth = getTextWidth(formattedTime)}
-                <div class="tick"
-                     style:left={`${tickX}px`}
-                     style:transform={`translateX(${offLeft > 0 && boundary > textWidth - buffer ? offLeft : 0}px)`}
-                >
-                    {formatter.format(tick)}
+        <div class="timeline-layout" onwheel={handleGlobalWheel}>
+            <div class="controls">
+                <label>
+                    Zoom:
+                    <input type="range" min="5" max="200" bind:value={zoom}/>
+                </label>
+                <div class="stats">
+                    Visible: {vTasks.length} / {tasksLength}
+                    ScrollLeft: {scrollLeft}
                 </div>
-            {/each}
-        </div>
-    </div>
+            </div>
 
-    <div class="body-scroll" bind:this={bodyEl} onscroll={handleNativeScroll} use:onResize>
-        <div class="rows-wrapper" style="width: {totalWidth}px" bind:clientHeight={rowsWrapperHeight}>
-            {#each dataSource.rows as row}
-                <div class="row">
-                    <div class="sidebar-cell" title={row.displayName}>{row.displayName}</div>
+            <div class="header-container" bind:this={headerEl}>
+                <div class="sidebar-placeholder" bind:clientWidth={sidebarWidth}>Application</div>
 
-                    {#if true}
-                        <div class="task-track">
-                            {#each visibleTasks as task (task.uid)}
-                                {#if task.resourceId === row.id}
-                                    <div
-                                            class="task-bar"
-                                            style="left: {getPos(task.from)}px;"
-                                            style:width={`${Math.max(2, getPos(task.to) - getPos(task.from))}px`}
-                                            title={task.label}
-                                    >
-                                    </div>
-                                {/if}
-                            {/each}
+                <div class="header-track" style="width: {totalWidth}px">
+                    <div class="template-tick-time" use:updateCharWidth>M</div>
+                    {#each visibleTicks as tick, i}
+                        {@const tickX = getPos(tick)}
+                        {@const formattedTime = formatter.format(tick)}
+                        {@const nextTick = visibleTicks[i + 1]}
+                        {@const tickSpace = getPos(nextTick) - tickX || 0}
+                        {@const offLeft = scrollLeft - tickX}
+                        {@const buffer = 10}
+                        {@const overlap = Math.max(0, offLeft)}
+                        {@const boundary = tickSpace - overlap}
+                        {@const textWidth = getTextWidth(formattedTime)}
+
+                        <div class="tick"
+                             style:left={`${tickX}px`}
+                             style:transform={`translateX(${offLeft > 0 && boundary > textWidth - buffer ? offLeft : 0}px)`}
+                        >
+                            {formatter.format(tick)}
                         </div>
-                    {/if}
+                    {/each}
                 </div>
-            {/each}
-        </div>
-    </div>
-</div>
+            </div>
 
+            <div class="body-scroll" bind:this={bodyEl} onscroll={handleNativeScroll} use:onResize>
+                <div class="rows-wrapper" style="width: {totalWidth}px">
+                    {#each rows as row}
+                        <div class="row">
+                            <div class="sidebar-cell" title={row.displayName}>{row.displayName}</div>
+
+                            {#if true}
+                                <div class="task-track">
+                                    {#each vTasks as task (task.uid)}
+                                        {#if task.resourceId === row.id}
+                                            <div
+                                                    class="task-bar"
+                                                    style="left: {getPos(task.from)}px;"
+                                                    style:width={`${Math.max(2, getPos(task.to) - getPos(task.from))}px`}
+                                                    title={task.label}
+                                            >
+                                            </div>
+                                        {/if}
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    {/if}
+{/await}
 <style lang="scss">
   .template-tick-time {
     opacity: 0;
