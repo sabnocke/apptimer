@@ -92,24 +92,10 @@
     function handleNativeScroll(e: Event) {
         const target = e.target as HTMLDivElement;
         scrollLeft = target.scrollLeft;
-        // scrollTop = target.scrollTop;
 
         if (headerEl)
             headerEl.scrollLeft = scrollLeft;
     }
-
-    /*function onResize(node: HTMLElement) {
-        const obs = new ResizeObserver(entries => {
-            containerWidth = entries[0].contentRect.width;
-        });
-        obs.observe(node);
-        return {destroy: () => obs.disconnect()};
-    }*/
-
-    /*function updateCharWidth(sample: HTMLElement): void {
-        const rect = sample.getBoundingClientRect();
-        headerCharWidth = rect.width;
-    }*/
 
     const updateCharWidth: Action = (node: HTMLElement) => {
         headerCharWidth = node.getBoundingClientRect().width;
@@ -126,14 +112,6 @@
             obs.observe(node);
         });
     };
-
-
-    /*$effect(() => {
-        console.log(visibleTasks);
-        console.log(sidebarWidth, tickWidth);
-        console.log(resolver.locationExists, resolver.mappingExists)
-    })*/
-
 </script>
 
 {#await

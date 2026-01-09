@@ -1,6 +1,4 @@
 <script lang="ts">
-    //TODO change getUniqueNames() to give back names based on current day, giving nothing if it's start
-
     import {dataSource} from "$lib/services";
     import OneListing from "$lib/OneListing.svelte";
     import {AsyncBox, type GanttTask, Timing} from "$lib/types";
@@ -17,9 +15,6 @@
         time: Timing
     }
 
-    const errorLog = $state(new Set<string>());
-    const displayLog = $derived([...errorLog].join("\n"));
-
     const parsedData = $derived.by(() => {
         return dataSource.uniqueNames().mapLeft(all => {
             const boxes = all.map((name, id) => {
@@ -32,12 +27,9 @@
                     .reduce((acc, item) => {
                         acc.add(item);
                         return acc;
-                    }, new Timing())
-                    .tapRight(e => console.warn(e));
+                    }, new Timing());
 
                 return AsyncBox.join(begin, end, sum).mapLeft<DisplayData>(([begin, end, sum]) => {
-                    console.log("- check sum: ", sum, sum.resync());
-
                     return {
                         id,
                         name,
@@ -45,10 +37,7 @@
                         end: new Date(end),
                         time: sum.resync()
                     }
-                }).tap(
-                    v => console.warn(v.time),
-                    e => console.warn(e)
-                );
+                });
             });
 
             return AsyncBox.join(...boxes)
@@ -138,13 +127,14 @@
         {#await AsyncBox.join(sorted, total) then value}
             {@const maybeValues = value.disband()}
             {#if !maybeValues.isOk}
-                <div>Box's string error: {errorLog}</div>
+                <div>Box's string error: {maybeValues.unwrapElse()}</div>
             {:else}
                 {@const [sortedValues, bT] = maybeValues.unwrapOk()}
                 {@const values = getIter(sortedValues.unwrapOk())}
                 {@const t = bT.unwrapOk()}
 
                 {#each values as {id, name, time, start, end} (id)}
+                    <div>{name}</div>
                     <OneListing
                             name={name}
                             time={time.format()}
@@ -155,8 +145,10 @@
                 {/each}
             {/if}
         {:catch e}
-            <div>{String(e)}</div>
+            <div class="error">
+                <strong>Component crash:</strong> {e.message}
+                <pre>{e.stack}</pre>
+            </div>
         {/await}
     </div>
-
 </div>

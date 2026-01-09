@@ -2,12 +2,13 @@
     //TODO buttons could generate long string and then display it
 
     import UnboundRenderer from "$lib/UnboundRenderer.svelte";
-    import type {KnownSelect} from "$lib/types";
+    import {AsyncBox, type KnownSelect} from "$lib/types";
     import {goto} from "$app/navigation";
     import {dataSource} from "$lib/services";
-    import {parsedDataCreator} from "$lib/services";
+    import {parsedDataCreator, getTotalTiming, ToSortedParsedData, parsedDataCreator2} from "$lib/services";
 
     let option: KnownSelect | null = $state(null);
+    let log = $state("empty");
 
     $effect(() => {
         console.log(option);
@@ -19,26 +20,35 @@
             r.action(console.log, console.error)
         });
     }
+
+    function fullClear(): void {
+        option = null;
+        console.clear();
+    }
+
+    function getListingJoin() {
+        return AsyncBox.join(ToSortedParsedData(), getTotalTiming());
+    }
+
+
 </script>
 
 <div class="container">
     <div class="sidebar-base">
-        <button class="some-btn" onclick={() => option = "names"}>Unique names</button>
-        <button class="some-btn" onclick={() => option = "data"}>Entry data</button>
+        <button class="some-btn" onclick={() => console.log(dataSource.uniqueNames())}>Unique names</button>
+        <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.data))}>Entry data</button>
         <button class="some-btn" onclick={triggerLoad}>Trigger load</button>
         <button class="some-btn" onclick={() => console.log(dataSource.longestTasks)}>Show longestTasks</button>
         <button class="some-btn" onclick={() => console.log(dataSource.error)}>Show error</button>
         <button class="some-btn" onclick={() => console.log(parsedDataCreator())}>Show parsed data</button>
+        <button class="some-btn" onclick={() => console.log(parsedDataCreator2())}>Show parsed data 2</button>
+        <button class="some-btn" onclick={() => console.log(getListingJoin())}>Show final listing join</button>
         <div></div>
-        <button class="some-btn" onclick={() => option = null}>Clear</button>
+        <button class="some-btn" onclick={fullClear}>Clear</button>
         <button class="some-btn" onclick={() => goto("/")}>Back</button>
     </div>
     <div class="display-area">
-        {#if option === "names"}
-            <UnboundRenderer select="names" />
-        {:else if option === "data"}
-            <UnboundRenderer select="data" />
-        {/if}
+
     </div>
 </div>
 

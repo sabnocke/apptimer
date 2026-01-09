@@ -11,6 +11,8 @@ export function getDayLogs(date: Date | null = null) {
     });
 }
 
-export function getUniqueNames() {
-    return invoke<string[]>("get_unique_names");
+export function getUniqueNames(date: Date | null = null) {
+    return invoke<string[]>("get_unique_names", {
+        when: date
+    });
 }

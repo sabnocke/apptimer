@@ -75,7 +75,7 @@ class Provider extends Array {
         return result;
     });
 
-    private getLongestChains(source: GanttTask<number>[]) {
+    public getLongestChains(source: GanttTask<number>[]) {
         if (source.length === 0) return [];
         if (source.length === 1) return [...source];
 
@@ -182,7 +182,7 @@ class Provider extends Array {
     }
 
     uniqueNames(): AsyncBox<string[]> {
-        return AsyncBox.fromPromise(getUniqueNames());
+        return AsyncBox.fromPromise(getUniqueNames(new Date()));
     }
 
     public load() {

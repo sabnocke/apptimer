@@ -64,10 +64,14 @@ export class Box<Ok, Else> {
     }
 
     unwrapOk(): Ok {
+        if (!this.isOk_)
+            throw new Error("[PANIC]: Expected Ok value Box, but received Else value Box.");
         return this.val as Ok;
     }
 
     unwrapElse(): Else {
+        if (!this.isOk_)
+            throw new Error("[PANIC]: Expected Else value Box, but received Ok value Box.");
         return this.val as Else;
     }
 

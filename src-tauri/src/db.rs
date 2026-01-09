@@ -207,3 +207,31 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
 
     Ok((update, insert))
 }
+
+pub async fn final_store() {
+    let today = Utc::now()
+        .date_naive()
+        .and_hms_opt(0, 0, 0).unwrap()
+        .and_utc();
+
+    let now = Utc::now();
+
+    if let Some(pool) = DB_CONN.get() {
+        let q = sqlx::query!(
+            r#"
+            UPDATE events
+            SET end_time = ?, temp_end_time = ?
+            WHERE end_time IS NULL
+            AND start_time >= ?
+            "#,
+            now,
+            now,
+            today
+        ).execute(pool).await;
+
+        match q {
+            Ok(r) => println!("Closed {} dangling sessions", r.rows_affected()),
+            Err(e) => println!("Failed to update db sessions: {}", e),
+        }
+    }
+}

@@ -162,8 +162,8 @@ export class AsyncBox<Ok, Else = Error> implements PromiseLike<Box<Ok, Else>> {
                 const box = Box.from(rawBox);
 
                 const state = box.fold<{isErr: boolean, val?: any, err?: E}>(
-                    v => ({isErr: false, v}),
-                    e => ({isErr: true, e})
+                    val => ({isErr: false, val}),
+                    err => ({isErr: true, err})
                 );
 
                 if (state.isErr) {
@@ -172,7 +172,6 @@ export class AsyncBox<Ok, Else = Error> implements PromiseLike<Box<Ok, Else>> {
 
                 results.push(state.val);
             }
-
             return Box.ok<T, E>(results as T);
         });
         return new AsyncBox(pr);

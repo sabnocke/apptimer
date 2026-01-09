@@ -6,7 +6,7 @@ mod windows;
 mod db;
 
 use crate::commands::{get_today_logs, get_logs_delta, get_unique_names};
-use crate::db::{init_db};
+use crate::db::{init_db, final_store};
 use os_utils::get_process_info;
 use tokio::time::{sleep, Duration};
 use tauri::{
@@ -95,6 +95,15 @@ fn main() {
                             let _ = window.hide();
                         }
                     }
+                },
+                RunEvent::ExitRequested { api, .. } => {
+                    api.prevent_exit();
+
+                    tauri::async_runtime::spawn(async move {
+                        final_store().await;
+                    });
+
+                    app_handle.exit(0);
                 }
                 _ => {}
             }

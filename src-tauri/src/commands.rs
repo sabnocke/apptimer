@@ -111,16 +111,10 @@ pub async fn get_today_logs() -> Result<Vec<LogEntry>, String> {
 }
 
 #[command]
-pub async fn get_logs_delta(now: DateTime<Local>) -> Result<Vec<LogEntry>, String> {
+pub async fn get_logs_delta(now: DateTime<Utc>) -> Result<Vec<LogEntry>, String> {
     let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
-
-    let midnight_now = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
-    let start_utc = Local
-        .from_local_datetime(&midnight_now)
-        .single()
-        .expect("Ambiguous local time due to DST")
-        .with_timezone(&Utc);
-    let end_utc = Local::now();
+    
+    let (start_utc, end_utc) = get_start_end_date(now);
 
     let logs = sqlx::query_as!(
         LogEntry,
@@ -149,19 +143,63 @@ pub async fn get_logs_delta(now: DateTime<Local>) -> Result<Vec<LogEntry>, Strin
     Ok(logs)
 }
 
+fn get_start_end_date(date: DateTime<Utc>) -> (DateTime<Utc>, DateTime<Utc>) {
+    let midnight = date.date_naive().and_hms_opt(0, 0, 0).unwrap();
+    let start_utc = Local
+        .from_local_datetime(&midnight)
+        .single()
+        .expect("Ambiguous local time due to DST")
+        .with_timezone(&Utc);
+
+    let end_utc = if Utc::now().date_naive() == date.date_naive() {
+        Utc::now()
+    } else {
+        let end_ = date.date_naive().and_hms_opt(23, 59, 59).unwrap();
+        Utc
+            .from_local_datetime(&end_)
+            .single()
+            .expect("Ambiguous local time due to DST")
+            .with_timezone(&Utc)
+    };
+
+    (start_utc, end_utc)
+}
+
+
+async fn __get_unique_names(when: DateTime<Utc>) -> Result<Vec<String>, String> {
+    let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
+
+    let (start, end) = get_start_end_date(when);
+
+    let result = sqlx::query_scalar::<_, String>(
+        r#"
+        SELECT DISTINCT(p.name) from processes p
+        JOIN events e ON e.process_id = p.id
+        WHERE e.start_time >= ? AND e.end_time <= ?
+        "#
+    )
+        .bind(start)
+        .bind(end)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(result)
+
+}
+
 #[command]
-pub async fn get_unique_names(when: Option<DateTime<Local>>) -> Result<Vec<String>, String> {
+pub async fn get_unique_names(when: Option<DateTime<Utc>>) -> Result<Vec<String>, String> {
     let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
     let result = if let Some(some_when) = when {
-        get_logs_delta(some_when)
-        .await?
-        .into_iter()
-        .map(|item| item.process_name)
-        .collect::<Vec<String>>()
+        __get_unique_names(some_when).await?
     } else {
         sqlx::query_scalar!(
             "SELECT name FROM processes"
-        ).fetch_all(pool).await.map_err(|e| e.to_string())?
+        )
+            .fetch_all(pool)
+            .await
+            .map_err(|e| e.to_string())?
     };
     Ok(result)
 }

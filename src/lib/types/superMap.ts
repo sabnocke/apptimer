@@ -26,14 +26,11 @@ export class SuperMap<K, V> extends Map<K, V> {
         return r;
     }
 
-    fetch<D = unknown>(key: K, fallback?: D): Box<V, D> {
-        const b = new Box<V, D>();
-
+    fetch(key: K, fallback?: V): Box<V, undefined> {
         if (this.has(key)) {
-
-            return b.bindLeft(super.get(key)!);
+            return Box.ok(super.get(key)!);
         } else {
-            return fallback ? b.bindRight(fallback) : b
+            return fallback ? Box.ok(fallback) : Box.error(undefined);
         }
     }
 }
