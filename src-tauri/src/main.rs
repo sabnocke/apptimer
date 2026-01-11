@@ -2,10 +2,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod commands;
 mod os_utils;
-mod windows;
 mod db;
 
-use crate::commands::{get_today_logs, get_logs_delta, get_unique_names};
+use crate::commands::{
+    get_today_logs,
+    get_logs_delta,
+    get_unique_names,
+    manual_cleanup,
+};
 use crate::db::{init_db, final_store};
 use os_utils::get_process_info;
 use tokio::time::{sleep, Duration};
@@ -77,6 +81,7 @@ fn main() {
             get_today_logs,
             get_logs_delta,
             get_unique_names,
+            manual_cleanup,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
@@ -96,15 +101,19 @@ fn main() {
                         }
                     }
                 },
-                RunEvent::ExitRequested { api, .. } => {
+                /*RunEvent::ExitRequested { api, .. } => {
                     api.prevent_exit();
 
                     tauri::async_runtime::spawn(async move {
                         final_store().await;
                     });
 
+                    /*tauri::async_runtime::spawn_blocking(async move {
+                        final_store().await;
+                    });*/
+
                     app_handle.exit(0);
-                }
+                }*/
                 _ => {}
             }
         });

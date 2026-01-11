@@ -113,23 +113,6 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
 
     let pool = DB_CONN.get().expect("Failed to get db connection");
 
-    /* let _ = sqlx::query!(
-        "INSERT OR IGNORE INTO processes (name) VALUES (?)",
-        process_name,
-    )
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?; */
-
-    /* let record: ProcessId = sqlx::query_as!(
-        ProcessId,
-        "SELECT id as 'id!' FROM processes WHERE name = ?",
-        process_name
-    )
-        .fetch_one(pool)
-        .await
-        .map_err(|e| e.to_string())?; */
-
     let record = sqlx::query_as!(
         ProcessId,
         r#"
@@ -207,7 +190,7 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
 
     Ok((update, insert))
 }
-
+#[allow(dead_code)]
 pub async fn final_store() {
     let today = Utc::now()
         .date_naive()
@@ -216,8 +199,9 @@ pub async fn final_store() {
 
     let now = Utc::now();
 
-    if let Some(pool) = DB_CONN.get() {
-        let q = sqlx::query!(
+    let pool = DB_CONN.get_or_init(init_db).await;
+
+    let q = sqlx::query!(
             r#"
             UPDATE events
             SET end_time = ?, temp_end_time = ?
@@ -229,9 +213,8 @@ pub async fn final_store() {
             today
         ).execute(pool).await;
 
-        match q {
-            Ok(r) => println!("Closed {} dangling sessions", r.rows_affected()),
-            Err(e) => println!("Failed to update db sessions: {}", e),
-        }
+    match q {
+        Ok(r) => println!("Closed {} dangling sessions", r.rows_affected()),
+        Err(e) => println!("Failed to update db sessions: {}", e),
     }
 }

@@ -2,7 +2,7 @@ use chrono::{DateTime, Local, TimeZone, Utc};
 use std::fmt;
 use tauri::command;
 
-use super::db::DB_CONN;
+use super::db::{DB_CONN, final_store};
 
 #[derive(serde::Serialize, sqlx::FromRow, serde::Deserialize, Clone, Debug)]
 pub struct LogEntry {
@@ -202,4 +202,9 @@ pub async fn get_unique_names(when: Option<DateTime<Utc>>) -> Result<Vec<String>
             .map_err(|e| e.to_string())?
     };
     Ok(result)
+}
+
+#[command]
+pub async fn manual_cleanup() {
+    final_store().await;
 }
