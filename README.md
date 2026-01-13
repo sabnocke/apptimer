@@ -30,11 +30,21 @@ This template should help get you started developing with Tauri, SvelteKit and T
 - [ ] Figure out different ways of visualizing the data
     - If any are needed
 - [ ] Boxes might not be necessary anymore
+- [ ] Instead of hiding destroy frontend and then rebuild it
+    - Might help with one of the bugs
+    - Could be also good to see the performance of it
      
 # BUGS
 - [BUG]: Once closed and reopened the close button (and others) don't work
     - Resizing seems to repair the issue
 - [RESOLVED, BUG]: There is an issue with fetching data from db on reload (F5) of frontend
+    - [BUG]: The loading seems to be broken when reopening from tray icon
 - [RESOLVED, BUG]: Dynamic reload with new data doesn't work
 - [RESOLVED, BUG]: `RangeError: date value is not finite in DateTimeFormat format()` in `Listing.svelte`
   - Sometimes shows up, reloading removes it?
+- [BUG]: Error: [PANIC]: Expected Else value Box, but received Ok value Box.
+    - in `<unknown>`
+	- in `+page.svelte`
+	- in `+layout.svelte`
+	- in `root.svelte`
+    - seems to be related to `uniqueNames_`    
