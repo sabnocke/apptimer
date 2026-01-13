@@ -24,7 +24,7 @@ This template should help get you started developing with Tauri, SvelteKit and T
 - [ ] What's next?
 - [ ] Add ability to change some of the data from the frontend
 - [ ] Figure out categorization
-- [ ] Remove gantt timeline
+- [X] Remove Gantt timeline
 - [ ] Remove `longestTasks` and related code from `Provider` or elsewhere
 - [ ] Operate directly with `Provider`'s `data`
 - [ ] Figure out different ways of visualizing the data
@@ -34,5 +34,7 @@ This template should help get you started developing with Tauri, SvelteKit and T
 # BUGS
 - [BUG]: Once closed and reopened the close button (and others) don't work
     - Resizing seems to repair the issue
-- ~~[BUG]: There is an issue with fetching data from db on reload (F5) of frontend~~
-- [BUG]: Dynamic reload with new data doesn't work
+- [RESOLVED, BUG]: There is an issue with fetching data from db on reload (F5) of frontend
+- [RESOLVED, BUG]: Dynamic reload with new data doesn't work
+- [RESOLVED, BUG]: `RangeError: date value is not finite in DateTimeFormat format()` in `Listing.svelte`
+  - Sometimes shows up, reloading removes it?

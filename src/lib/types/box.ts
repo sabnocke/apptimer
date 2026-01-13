@@ -241,4 +241,19 @@ export class Box<Ok, Else> {
                 return this;
         }
     }
+
+    static partition<Ok, Else>(...boxes: Box<Ok, Else>[]): [Ok[], Else[]] {
+        const oks: Ok[] = [];
+        const errs: Else[] = [];
+
+        for (const box of boxes) {
+            if (box.isOk_) {
+                oks.push(box.unwrapOk() as Ok);
+            } else if (!box.isOk_) {
+                errs.push(box.unwrapElse() as Else);
+            }
+        }
+
+        return [oks, errs];
+    }
 }

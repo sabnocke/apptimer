@@ -2,7 +2,6 @@
     import {dataSource} from "$lib/services/dataProvider.svelte";
     import {Timing} from "$lib/types";
     import RadioButtons from "$lib/RadioButtons.svelte";
-    import TimelineTwo from "$lib/TimelineTwo.svelte";
     import Listing from "$lib/Listing.svelte";
     import Loader from "$lib/Loader.svelte";
     import {goto} from "$app/navigation";
@@ -41,31 +40,8 @@
     </div>
     <div class="display">
         <!--            <TimelineTwo />-->
-        <!--            <Listing />-->
-        <Listing2 />
+                    <Listing />
     </div>
-    <!--{#if dataSource.loading.allSet}
-
-    {:else if dataSource.error}
-        <div>{dataSource.error}</div>
-    {:else}
-        <div class="controls grid-container">
-            <div class="grid-item-1">
-                <div class="sub-flex-1">
-                    <div id="flex-item-1">{formatter.format(dataSource.timeRange.start)}</div>
-                    <div id="flex-item-2">-</div>
-                    <div id="flex-item-3">{formatter.format(dataSource.timeRange.end)}</div>
-                </div>
-                <div id="flex-item-4">Total time: {total.format()}</div>
-                <button onclick={() => goto("/dataDisplay")}>Data Display</button>
-            </div>
-            <div class="grid-item-2"><RadioButtons /></div>
-        </div>
-        <div class="display">
-            <TimelineTwo />
-            <Listing />
-        </div>
-    {/if}-->
 </main>
 
 <style lang="scss">

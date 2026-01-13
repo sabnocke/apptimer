@@ -1,5 +1,4 @@
-import {Box, type GanttTask, AsyncBox} from "$lib/types";
-import {resolver} from "$lib/services";
+import {Box, AsyncBox} from "$lib/types";
 import {listen} from "@tauri-apps/api/event";
 import {getDayLogs, getUniqueNames} from "$lib/services";
 
@@ -18,13 +17,23 @@ interface IRow {
     displayName: string,
 }
 
+interface ErrorRecord {
+    from?: "fetchData" | "uniqueNames"
+    message?: string
+}
+
 class Provider extends Array {
-    data = $state<LogEntry<Date>[]>([]);
-    error = $state<string | null>(null);
+    data: LogEntry<Date>[] = $state<LogEntry<Date>[]>([]);
+    private uniqueNames_: string[] = $state<string[]>([]);
+    lookup: Map<string, LogEntry<Date>[]> = $derived(Map.groupBy(this.data, val => val.process_name));
+
+    loading: boolean = $state(true);
+
+    private error_: ErrorRecord = $state<ErrorRecord>({});
 
     intervalId: number | null = null;
     listeners: number = 0;
-    private unListen: null | (() => void) = null;
+    private unListen_: null | (() => void) = null;
     listenerActive = false;
 
     timeRange = $derived.by(() => {
@@ -36,82 +45,17 @@ class Provider extends Array {
         const end = Math.max(...times);
         return {start, end, totalSeconds: Math.ceil((end - start) / 1000)};
     });
-    rows = $derived.by(() => {
-        return this
-            .uniqueNames()
-            .process<IRow>((name, idx) => ({
-                id: idx,
-                name: name,
-                displayName: resolver.resolve(name)
-            }));
-    });
-    longestTasks = $derived.by(() => {
-        const grouped = Map.groupBy(this.data, item => item.process_name);
-        let result = AsyncBox.ok<GanttTask<number>[], string>([]);
 
-        for (const [procName, rawItems] of grouped) {
-            if (rawItems.length === 0) continue;
+    get getUniqueNames(): string[] {
+        return this.uniqueNames_;
+    }
 
-            const row = this.rows
-                .find(r => r.name === procName)
-                .mapRight(() => `Row not found: ${procName}`);
+    get isErrorSet(): boolean {
+        return this.error_.from !== undefined && this.error_.message !== undefined;
+    }
 
-            const mapped = row.mapLeft(r =>
-            rawItems.map<GanttTask<number>>((value, index) => ({
-                id: index,
-                uid: `${value.process_name}-${value.start_time.valueOf()}`,
-                resourceId: r.id,
-                from: value.start_time.valueOf(),
-                to: (value.end_time ?? value.temp_end_time).valueOf(),
-                label: "",
-                classes: "task-item",
-                processName: value.process_name,
-            })));
-
-            result = result.zipWith(mapped, (a, b) =>
-                [...a, ...this.getLongestChains(b)]
-            );
-        }
-        return result;
-    });
-
-    public getLongestChains(source: GanttTask<number>[]) {
-        if (source.length === 0) return [];
-        if (source.length === 1) return [...source];
-
-        // 2. Sort by Start Time
-        const sorted = source.slice().sort((a, b) => a.from - b.from)
-
-        const chains: GanttTask<number>[] = [];
-        let currentChain: GanttTask<number> = {...sorted[0]};
-
-        let currentStart = sorted[0];
-        let currentTo = sorted[0].to;
-
-        for (let i = 1; i < sorted.length; i++) {
-            const nextTask = sorted[i];
-
-            if (!nextTask) continue;
-
-            if (nextTask.from <= currentTo) {
-                currentTo = Math.max(currentChain.to, nextTask.to);
-            } else {
-                chains.push({
-                    ...currentStart,
-                    to: currentTo,
-                });
-
-                currentStart = nextTask;
-                currentTo = nextTask.to;
-            }
-        }
-
-        chains.push({
-            ...currentStart,
-            to: currentTo,
-        });
-
-        return chains;
+    get error(): ErrorRecord {
+        return this.error_;
     }
 
     subscribe(usePolling: boolean = true, pollingRate: number = 1000) {
@@ -143,14 +87,14 @@ class Provider extends Array {
             event.payload.forEach(entry => {
                 this.data.push(this.stringToDate(entry));
             })
-        }).then(fn => this.unListen = fn);
+        }).then(fn => this.unListen_ = fn);
         this.load();
         this.listenerActive = true;
     }
 
     private removeListener() {
-        if (this.listenerActive && this.unListen) {
-            this.unListen();
+        if (this.listenerActive && this.unListen_) {
+            this.unListen_();
             this.listenerActive = false;
         } else {
             return false;
@@ -159,7 +103,7 @@ class Provider extends Array {
     }
 
     private startPolling(usePolling: boolean = true, useListen: boolean = false, pollInterval: number = 1000) {
-        // console.log("Polling started...", usePolling, useListen);
+        this.synUniqueNames();
         if (usePolling) {
             this.load();
             this.intervalId = setInterval(() => this.load(), pollInterval);
@@ -181,6 +125,27 @@ class Provider extends Array {
         this.load();
     }
 
+    synUniqueNames() {
+        let result = false;
+        this.uniqueNames().unwrapOr([]).then(
+            r => {
+                if (r.length === 0) {
+                    this.error_ = {
+                        from: "uniqueNames",
+                        message: "Promise resolved successfully, but no valid values obtained!"
+                    }
+                    result = false;
+                } else {
+                    this.uniqueNames_ = r
+                    result = true;
+                }
+            },
+            e => this.error_ = {from: "uniqueNames", message: String(e)}
+        );
+
+        return result;
+    }
+
     uniqueNames(): AsyncBox<string[]> {
         return AsyncBox.fromPromise(getUniqueNames(new Date()));
     }
@@ -188,8 +153,10 @@ class Provider extends Array {
     public load() {
         this.fetchData().then(b => b.action(
             v => this.data = v,
-            e => this.error = String(e)
+            e => this.error_ = {from: "fetchData", message: String(e)}
         ));
+
+        this.loading = false;
     }
 
     public async fetchData(): Promise<Box<Array<LogEntry<Date>>, unknown>> {

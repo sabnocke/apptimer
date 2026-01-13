@@ -1,7 +1,9 @@
 <script lang="ts">
     import {dataSource} from "$lib/services";
     import OneListing from "$lib/OneListing.svelte";
-    import {AsyncBox, type GanttTask, Timing} from "$lib/types";
+    import {Timing, Box} from "$lib/types";
+    import type {LogEntry} from "$lib/services/dataProvider.svelte";
+    import {resolver} from "$lib/services";
 
     $effect(() => {
         return dataSource.subscribe(false);
@@ -12,143 +14,94 @@
         name: string;
         start: Date;
         end: Date;
-        time: Timing
+        time: Timing;
     }
 
-    const parsedData = $derived.by(() => {
-        return dataSource.uniqueNames().mapLeft(all => {
-            const boxes = all.map((name, id) => {
-                const f: AsyncBox<GanttTask<number>[], any> = dataSource.longestTasks.filter(d => d.processName === name);
-                const m: AsyncBox<Timing[], any> = f.process(d => Timing.from_valueOf(d.from, d.to));
+    interface Record {
+        id: number
+        name: string
+    }
 
-                const begin: AsyncBox<number, any> = f.mapLeft(arr => Math.min(...arr.map(x => x.from)));
-                const end: AsyncBox<number, any> = f.mapLeft(arr => Math.max(...arr.map(x => x.to)));
-                const sum: AsyncBox<Timing, any> = m
-                    .reduce((acc, item) => {
-                        acc.add(item);
-                        return acc;
-                    }, new Timing());
+    const parsedData_: DisplayData[] = $derived.by(() => {
+        if (dataSource.getUniqueNames.length === 0) {
+            //? Might this help with reduce being used, and failing, on empty array
+            return [];
+        }
 
-                return AsyncBox.join(begin, end, sum).mapLeft<DisplayData>(([begin, end, sum]) => {
-                    return {
-                        id,
-                        name,
-                        start: new Date(begin),
-                        end: new Date(end),
-                        time: sum.resync()
-                    }
-                });
-            });
+        const box: Box<DisplayData, Record>[] = dataSource.getUniqueNames.map((name, id) => {
+            const f: LogEntry<Date>[] = dataSource.lookup.get(name) || [];
 
-            return AsyncBox.join(...boxes)
-        }).flatten()
-    });
+            if (f.length === 0) {
+                return Box.else({id, name});
+            }
 
-    const total = $derived(
-        parsedData
-            .process(v => v.time.collapseToSeconds())
-            .reduce((acc, item) => acc + item, 0)
-            .mapLeft(x => Timing.from_seconds(x))
+            const m = f.map(one => new Timing(one.start_time, (one.end_time ?? one.temp_end_time)));
+
+            const begin = Math.min(...f.map(one => one.start_time.valueOf()));
+            const end = Math.max(...f.map(one => (one.end_time ?? one.temp_end_time).valueOf()));
+            const time = m.reduce((acc, item) => acc.add(item), new Timing()).resync();
+
+            const d: DisplayData = {
+                id,
+                name,
+                start: new Date(begin),
+                end: new Date(end),
+                time
+            }
+
+            return Box.ok(d);
+        })
+
+        const [success, failure] = Box.partition<DisplayData, Record>(...box);
+        failure.forEach(
+            ({id, name}) => console.warn(`Entry (${id}, ${name}) doesn't have associated data!`)
+        );
+
+        return success;
+    })
+
+    const total: Timing = $derived(
+        Timing.from_seconds(
+            parsedData_
+                .filter(value => value !== null)
+                .map(one => one.time.collapseToSeconds())
+                .reduce((acc, item) => acc + item, 0)
+        )
     );
 
-    function getPercentage(up: Timing, down: Timing): string {
-        return ((up.collapseToSeconds() / down.collapseToSeconds()) * 100).toFixed(2) + "%";
-    }
-
     const sorted = $derived.by(() => {
-        return parsedData.mapLeft(arr => arr.sort((a, b) => {
+        return parsedData_.sort((a, b) => {
             const sa = a.time.collapseToSeconds();
             const sb = b.time.collapseToSeconds();
             return sb - sa;
-        }))
+        })
     })
 
-    function* getIter(src: DisplayData[]) {
-        for (const item of src) {
-            yield item;
-        }
+    function getPercentage(up: Timing, down: Timing): string {
+        const ups = up.collapseToSeconds();
+        const downs = down.collapseToSeconds();
+        if (downs === 0) return "0%";
+        return (ups / downs * 100).toFixed(2) + "%";
     }
-
 </script>
 
-<style lang="scss">
-  .container {
-    display: flex;
-    flex-direction: column;
-    max-height: 50%;
-    width: 50%;
-  }
-
-  .header {
-    display: grid;
-    grid-template-columns: 0.75fr 0.75fr 1fr;
-    border-bottom: 1px solid black;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-
-    &:nth-child(n) {
-      font-weight: bold;
-      text-align: center;
-    }
-
-    &__name {
-      border-right: 1px solid rgba(0, 0, 0, 0.1);
-      max-width: 278px;
-    }
-  }
-
-  .sub-header {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .display {
-    display: flex;
-    flex-direction: column;
-
-    min-height: 0;
-    overflow-y: auto;
-    z-index: 1;
-  }
-</style>
-
-<div class="container">
-    <div class="header">
-        <div class="header__name">Name</div>
-        <div class="header__ratio">Ratio</div>
-        <div class="sub-header">
-            <div class="header__time">From</div>
-            <div class="header__time">To</div>
-            <div class="header__total">Total</div>
-        </div>
-    </div>
-
-    <div class="display">
-        {#await AsyncBox.join(sorted, total) then value}
-            {@const maybeValues = value.disband()}
-            {#if !maybeValues.isOk}
-                <div>Box's string error: {maybeValues.unwrapElse()}</div>
-            {:else}
-                {@const [sortedValues, bT] = maybeValues.unwrapOk()}
-                {@const values = getIter(sortedValues.unwrapOk())}
-                {@const t = bT.unwrapOk()}
-
-                {#each values as {id, name, time, start, end} (id)}
-                    <div>{name}</div>
-                    <OneListing
-                            name={name}
-                            time={time.format()}
-                            percentage={getPercentage(time, t)}
-                            start={start}
-                            end={end}
-                    />
-                {/each}
-            {/if}
-        {:catch e}
-            <div class="error">
-                <strong>Component crash:</strong> {e.message}
-                <pre>{e.stack}</pre>
-            </div>
-        {/await}
-    </div>
+<div class="display">
+    {#if dataSource.loading}
+        <div>LOADING</div>
+    {:else if dataSource.isErrorSet}
+        {@const {from, message} = dataSource.error}
+        <div>{from}</div>
+        <div>{message}</div>
+    {:else}
+        {#each sorted as {id, name, start, end, time} (id)}
+            <OneListing
+                    name={resolver.resolve(name)}
+                    time={time.format()}
+                    percentage={getPercentage(time, total)}
+                    start={start}
+                    end={end}
+            />
+        {/each}
+        <div>{total.format()}</div>
+    {/if}
 </div>
