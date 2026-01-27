@@ -3,8 +3,10 @@
     import {Timing} from "$lib/types";
     import RadioButtons from "$lib/RadioButtons.svelte";
     import Listing from "$lib/Listing.svelte";
-    import Loader from "$lib/Loader.svelte";
     import {goto} from "$app/navigation";
+    import SwitchButton from "$lib/SwitchButton.svelte";
+    import {checkAccess, setLogging} from "$lib/services";
+    import {onMount} from "svelte";
 
     $effect(() => {
         return dataSource.subscribe();
@@ -23,6 +25,73 @@
         year: "numeric",
         hour12: false
     });
+
+    let allowLogging: boolean = $state(true);
+    let isBusy: boolean = $state(false);
+
+    $effect(() => {
+        console.log(`allowLogging: ${allowLogging}`);
+    })
+
+    onMount(async () => {
+        try {
+            console.log("Finding initial state...");
+            allowLogging = await checkAccess();
+            console.log("Initial state is: ", allowLogging);
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    async function testPause(): Promise<void> {
+        if (isBusy) return;
+
+        isBusy = true;
+
+        try {
+            const targetState = !allowLogging;
+            console.log(`${allowLogging} -> ${targetState}`);
+
+            allowLogging = targetState;
+        } catch (e) {
+            console.error(e);
+        } finally {
+            isBusy = false
+        }
+    }
+
+    async function pause(): Promise<void> {
+        if (isBusy) {
+            console.log("isBusy is active...");
+            return;
+        }
+
+        console.log(`[${new Date()}]: pause/resume called from frontend`);
+
+        isBusy = true;
+
+        try {
+            const targetState = !allowLogging;
+            console.log(`${allowLogging} -> ${targetState}`);
+
+            allowLogging = await setLogging(targetState);
+        } catch (e) {
+            console.error("Failed: ", e);
+        } finally {
+            console.log(`[${(new Date()).toISOString()}]: isBusy released`);
+            isBusy = false;
+        }
+    }
+
+    function pauseWrapper(): void {
+        console.log((new Date()).toISOString(), "Start");
+        pause().then();
+        console.log((new Date()).toISOString(), "End");
+    }
+
+
+
+
 </script>
 
 <main class="container">
@@ -37,10 +106,12 @@
             <button onclick={() => goto("/dataDisplay")}>Data Display</button>
         </div>
         <div class="grid-item-2"><RadioButtons /></div>
+        <div class="grid-item-3">
+            <SwitchButton value={allowLogging ? "Pause" : "Resume"} onmousedown={pause} disabled={isBusy}/>
+        </div>
     </div>
     <div class="display">
-        <!--            <TimelineTwo />-->
-                    <Listing />
+        <Listing />
     </div>
 </main>
 
@@ -102,17 +173,21 @@
     width: 100%;
 
     .grid-item-1 {
-      grid-area: 1/1/2/2;
+      //grid-area: 1/1/2/2;
       background-color: rgba(37, 177, 196, 0.5);
       align-self: start;
     }
 
     .grid-item-2 {
-      grid-area: 1/2/2/3;
+      //grid-area: 1/2/2/3;
       background-color: rgba(156, 120, 64, 0.5);
       display: flex;
       justify-content: center;
       align-items: flex-start;
+    }
+
+    .grid-item-3 {
+      padding: 0.5rem;
     }
   }
 

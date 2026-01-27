@@ -1,3 +1,4 @@
+use chrono::{Local, Utc};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
@@ -60,7 +61,13 @@ pub async fn get_process_info(handle: &AppHandle) {
 
     if let Some(window) = get_kde_active_window().await {
         if **last_name != window.process_name || **last_title != window.title {
-            println!("Switch! {} -> {}", last_name, window.process_name);
+            println!(
+                "Switch! {} -> {} | UTC: {} , Local: {}",
+                last_name,
+                window.process_name,
+                Utc::now(),
+                Local::now()
+            );
 
             match log_switch(&window.process_name, &window.title).await {
                 Ok(entries) => {

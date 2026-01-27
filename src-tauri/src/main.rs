@@ -9,6 +9,8 @@ use crate::commands::{
     get_logs_delta,
     get_unique_names,
     manual_cleanup,
+    set_logging,
+    check_access,
 };
 use crate::db::{init_db, final_store};
 use os_utils::get_process_info;
@@ -70,7 +72,10 @@ fn main() {
                 init_db().await;
 
                 loop {
-                    get_process_info(&handle).await;
+                    println!("- current allowLogging value: {}", check_access());
+                    if check_access() {
+                        get_process_info(&handle).await;
+                    }
                     sleep(Duration::from_secs(1)).await;
                 }
             });
@@ -82,6 +87,8 @@ fn main() {
             get_logs_delta,
             get_unique_names,
             manual_cleanup,
+            set_logging,
+            check_access,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

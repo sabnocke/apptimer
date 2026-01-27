@@ -206,11 +206,9 @@ pub async fn final_store() {
             UPDATE events
             SET end_time = ?, temp_end_time = ?
             WHERE end_time IS NULL
-            AND start_time >= ?
             "#,
             now,
-            now,
-            today
+            now
         ).execute(pool).await;
 
     match q {

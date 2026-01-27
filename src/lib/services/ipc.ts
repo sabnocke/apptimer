@@ -16,3 +16,11 @@ export function getUniqueNames(date: Date | null = null) {
         when: date
     });
 }
+
+export function setLogging(enable: boolean): Promise<boolean> {
+    return invoke<boolean>("set_logging", {enable: enable});
+}
+
+export function checkAccess(): Promise<boolean> {
+    return invoke<boolean>("check_access");
+}

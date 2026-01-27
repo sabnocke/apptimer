@@ -90,8 +90,10 @@
         <div>LOADING</div>
     {:else if dataSource.isErrorSet}
         {@const {from, message} = dataSource.error}
-        <div>{from}</div>
-        <div>{message}</div>
+        {#if from !== "uniqueNames"}
+            <div>{from}</div>
+            <div>{message}</div>
+        {/if}
     {:else}
         {#each sorted as {id, name, start, end, time} (id)}
             <OneListing

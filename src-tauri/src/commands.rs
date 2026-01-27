@@ -1,8 +1,10 @@
 use chrono::{DateTime, Local, TimeZone, Utc};
 use std::fmt;
 use tauri::command;
-
+use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
 use super::db::{DB_CONN, final_store};
+
+static ALLOW_LOGGING: AtomicBool = AtomicBool::new(true);
 
 #[derive(serde::Serialize, sqlx::FromRow, serde::Deserialize, Clone, Debug)]
 pub struct LogEntry {
@@ -207,4 +209,32 @@ pub async fn get_unique_names(when: Option<DateTime<Utc>>) -> Result<Vec<String>
 #[command]
 pub async fn manual_cleanup() {
     final_store().await;
+}
+
+#[command]
+pub async fn set_logging(enable: bool) -> bool {
+    println!("-- [{}]: switch called from backend", Utc::now());
+    let was_running = ALLOW_LOGGING.load(SeqCst);
+
+    println!("was: {}, enable: {}", was_running, enable);
+
+    if was_running != enable {
+        ALLOW_LOGGING.store(enable, SeqCst);
+        if enable {
+            println!("Resuming... loop will start new session automatically.");
+        } else {
+            println!("Pausing...");
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            println!("Closing active session...");
+
+            final_store().await;
+        }
+    }
+
+    enable
+}
+
+#[command]
+pub fn check_access() -> bool {
+    ALLOW_LOGGING.load(SeqCst)
 }

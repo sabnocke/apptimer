@@ -1,46 +1,61 @@
 # Tauri + SvelteKit + TypeScript
 
-This template should help get you started developing with Tauri, SvelteKit and TypeScript in Vite.
+This template should help get you started developing with Tauri, SvelteKit and
+TypeScript in Vite.
 
 ## Recommended IDE Setup (for VSCode)
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
-
+[VS Code](https://code.visualstudio.com/) + 
+[Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode)+ 
+[Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)+ 
+[rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
 
 ## Running it
 
 - Windows:
+
 > `bun run tauri dev`
 
 - Linux:
-> `bun run devel` - tested on *kde/eos* and will work only with kde (it depends on *kdotool*)
+
+> `bun run devel` - tested on kde/eos and will work only with kde (it depends on kdotool)
 
 # ToDo
+- [x] Repair the layout (controls don't need that much space)
 
-- [X] Repair the layout (controls don't need that much space)
-- [ ] Add the ability to change date
-- [ ] Add steam name resolver
-- [ ] ?Add treemap for monthly view
-- [ ] What's next?
-- [ ] Add ability to change some of the data from the frontend
+## General functionality
+
+- [ ] Add the ability to change the date of view
+- [ ] Add ability to change some of the data from the frontend (editing)
 - [ ] Figure out categorization
-- [X] Remove Gantt timeline
-- [ ] Remove `longestTasks` and related code from `Provider` or elsewhere
-- [ ] Operate directly with `Provider`'s `data`
-- [ ] Figure out different ways of visualizing the data
-    - If any are needed
-- [ ] Boxes might not be necessary anymore
-- [ ] Instead of hiding destroy frontend and then rebuild it
-    - Might help with one of the bugs
-    - Could be also good to see the performance of it
-     
+  - Probably via parent process
+- [X] Add ability to pause tracking (will need IPC call)
+- [ ] Add dialog to either close the program (exit) or minimize it (hide) upon pressing exit button
+
+## Visualization
+
+- [x] Remove Gantt timeline
+- [x] Remove longestTasks and related code from Provider or elsewhere
+- [ ] Figure out a different way of visualizing the data
+- [ ] ?Add treemap for monthly view
+- [ ] Overhaul UI/UX to a more unified vision
+
+## Name resolving
+
+- [ ] Add steam name resolver
+- [ ] Figure out name resolving of PWA
+  - Seems to be issue on Vivaldi and any PWA
+  - `Vivaldi-bobcidbgoopfnikbbgihiiihapdmbplc-Def` >> `Notion`
+  - Or since it still uses Vivaldi group them together (the simpler solution)
+
 # BUGS
+
 - [BUG]: Once closed and reopened the close button (and others) don't work
-    - Resizing seems to repair the issue
 - [RESOLVED, BUG]: There is an issue with fetching data from db on reload (F5) of frontend
     - [BUG]: The loading seems to be broken when reopening from tray icon
 - [RESOLVED, BUG]: Dynamic reload with new data doesn't work
-- [RESOLVED, BUG]: `RangeError: date value is not finite in DateTimeFormat format()` in `Listing.svelte`
+- [RESOLVED, BUG]: RangeError: date value is not finite in `DateTimeFormat
+  format()` in `Listing.svelte`
   - Sometimes shows up, reloading removes it?
 - [BUG]: Error: [PANIC]: Expected Else value Box, but received Ok value Box.
     - in `<unknown>`
