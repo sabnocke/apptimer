@@ -1,5 +1,6 @@
 import {BaseDirectory, exists, mkdir, readTextFile, writeTextFile} from "@tauri-apps/plugin-fs";
 import {Box, SuperMap} from "$lib/types";
+import type {LogEntry} from "$lib/services/dataProvider.svelte";
 
 class NameResolver {
     private _locationExists: boolean = false;
@@ -13,6 +14,8 @@ class NameResolver {
         {pattern: /^org\.[^.]+\.(.+)$/i, replace: "$1"},
         // Result: com.google.Chrome -> Chrome
         {pattern: /^com\.[^.]+\.(.+)$/i, replace: "$1"},
+        //TODO maybe some other way of doing this
+        {pattern: /^jetbrains-(.+)$/i, replace: "$1"},
     ]
 
     get mappingExists(): boolean {
@@ -54,6 +57,23 @@ class NameResolver {
         }
     }
 
+    private async resolveGameNameInBackground(id: string) {
+
+    }
+
+    resolveSteamGameName(item: string) {
+        // item is "steam_app_<number>"
+        const match = item.match(/steam_app_(\d+)/);
+        if (match) {
+            const appId = match[1];
+            let resolvedName = this.mapping.fetch(appId);
+            if(resolvedName.isInElse) {
+                this.resolveGameNameInBackground(appId);
+                resolvedName.bindLeft(`Steam Game ${appId}`);
+            }
+        }
+    }
+
     //? Will be used later
     async updateMapping(key: string, value: string): Promise<Box<boolean, unknown>> {
         try {
@@ -74,6 +94,34 @@ class NameResolver {
 
     capitalize(word: string): string {
         return word.charAt(0).toUpperCase() + word.slice(1);
+    }
+
+    resolveComplex(item: LogEntry<Date>): string {
+        if (!item.process_name && !item.window_title) {
+            return "UNKNOWN"
+        }
+
+        if (/^[a-z]+-[a-z]{32}-.+$/.test(item.process_name)) {
+            console.log("[DETECTED PWA pattern]");
+            // window title can be: <program name> - <something>, I should remove both the colon and something
+            const maybeName = item.window_title.split("-"); //? there can be more than two
+            console.log("[SPLIT]:", maybeName);
+            const someName = maybeName[0].replace(/\s/, "");
+            console.log("[REPLACE]:", someName);
+            // hopefully this will be a usable value
+            return this.capitalize(someName);
+        }
+
+        const vb = this.mapping.fetch(item.process_name).unwrapOr("");
+        if (vb !== "") return vb;
+
+        let newName: string = item.process_name;
+        for (const rule of this.cleanupRules) {
+            if(!rule.pattern.test(newName)) continue;
+            newName = item.process_name.replace(rule.pattern, rule.replace);
+        }
+
+        return this.capitalize((newName));
     }
 
     resolve(name: string): string {

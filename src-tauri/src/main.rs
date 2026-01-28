@@ -11,6 +11,7 @@ use crate::commands::{
     manual_cleanup,
     set_logging,
     check_access,
+    fetch_load_steam_game_data
 };
 use crate::db::{init_db, final_store};
 use os_utils::get_process_info;
@@ -89,6 +90,7 @@ fn main() {
             manual_cleanup,
             set_logging,
             check_access,
+            fetch_load_steam_game_data
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

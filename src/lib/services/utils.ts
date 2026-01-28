@@ -59,3 +59,38 @@ export function parsedDataCreatorSyn() {
         }
     });
 }
+
+export function selectiveSubscribe(date: Date, print: boolean = true): (() => void) {
+    console.log("selectiveSubscribe's date: ", date);
+    const isToday: boolean = date.toDateString() === new Date().toDateString();
+    if (isToday) {
+        if (print) console.log("📅 Viewing Today: Starting Real-time Listener...");
+        return dataSource.subscribe(false);
+    } else {
+        if (print) console.log("📅 Viewing Past: Real-time updates disabled.");
+        return () => null;
+    }
+}
+
+export const formatter = Intl.DateTimeFormat("cs-CZ", {
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+    hour12: false
+});
+
+export const dateFormatter = Intl.DateTimeFormat("cs-CZ", {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+    weekday: "short",
+});
+
+export const timeFormatter = Intl.DateTimeFormat("cs-CZ", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+})

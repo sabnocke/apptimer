@@ -24,3 +24,7 @@ export function setLogging(enable: boolean): Promise<boolean> {
 export function checkAccess(): Promise<boolean> {
     return invoke<boolean>("check_access");
 }
+
+export function getSteamGameName(appId: number): Promise<string> {
+    return invoke<string>("fetch_load_steam_game_data");
+}

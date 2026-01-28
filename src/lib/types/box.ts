@@ -25,7 +25,7 @@ export class Box<Ok, Else> {
     }
 
     get isInElse(): boolean {
-        return !!this.val && !this.isOk_;
+        return !this.isOk_;
     }
 
     /*static of<Ok>(val: Ok): Box<Ok, any> {
@@ -255,5 +255,35 @@ export class Box<Ok, Else> {
         }
 
         return [oks, errs];
+    }
+
+    static* destruct<Ok, Else>(...boxes: Box<Ok, Else>[]): Generator<Ok, Else | null, void> {
+        for (const box of boxes) {
+            if (box.isOk_) {
+                yield box.val as Ok;
+            } else {
+                return box.val as Else;
+            }
+        }
+        return null;
+    }
+
+    static consumeSafe<Ok, Else>(gen: Generator<Ok, Else | null, void>) {
+        const values: Ok[] = [];
+        let result = gen.next();
+
+        while(!result.done) {
+            values.push(result.value);
+            result = gen.next();
+        }
+
+        return {
+            values,
+            error: result.value
+        }
+    }
+
+    static consumeSafeFull<Ok, Else>(...boxes: Box<Ok, Else>[]): {values: Ok[]; error: Else | null} {
+        return Box.consumeSafe(Box.destruct(...boxes));
     }
 }

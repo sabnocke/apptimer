@@ -216,3 +216,19 @@ pub async fn final_store() {
         Err(e) => println!("Failed to update db sessions: {}", e),
     }
 }
+
+pub async fn load_steam_game_data(app_id: u32) -> Option<String> {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+    let name = format!("steam_app_{}", app_id);
+
+    sqlx::query!(
+        "SELECT display_name FROM app_dictionary WHERE process_key = ?",
+        name
+    )
+        .fetch_optional(pool)
+        .await
+        .ok()
+        .flatten()
+        .map(|d| d.display_name)
+        .flatten()
+}

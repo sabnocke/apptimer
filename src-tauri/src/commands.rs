@@ -1,8 +1,11 @@
 use chrono::{DateTime, Local, TimeZone, Utc};
 use std::fmt;
 use tauri::command;
+use reqwest;
+use serde_json::{Value,};
 use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
-use super::db::{DB_CONN, final_store};
+use super::db::{DB_CONN, final_store, load_steam_game_data};
+
 
 static ALLOW_LOGGING: AtomicBool = AtomicBool::new(true);
 
@@ -237,4 +240,43 @@ pub async fn set_logging(enable: bool) -> bool {
 #[command]
 pub fn check_access() -> bool {
     ALLOW_LOGGING.load(SeqCst)
+}
+
+#[derive(serde::Deserialize)]
+struct SteamResponse {
+    #[serde(rename = "data")]
+    details: Option<GameDetails>,
+    success: bool,
+}
+
+#[derive(serde::Deserialize)]
+struct GameDetails {
+    name: String,
+}
+
+#[command]
+pub async fn fetch_steam_game_data(app_id: u32) -> Option<String> {
+    let url = format!("https://store.steampowered.com/api/appdetails?appids={}", app_id);
+
+    let resp = reqwest::get(&url).await.ok()?.json::<serde_json::Value>().await.ok()?;
+
+    let game_data = resp.get(app_id.to_string())?;
+
+    if game_data.get("success")?.as_bool()? {
+        let name = game_data.get("data")?.get("name")?.as_str()?;
+        return Some(name.to_string());
+    }
+    None
+}
+
+#[command]
+pub async fn fetch_load_steam_game_data(app_id: u32) -> String {
+    if let Some(name) = load_steam_game_data(app_id).await {
+        return name;
+    }
+    if let Some(name) = fetch_steam_game_data(app_id).await {
+        return name;
+    }
+
+    format!("steam_app_{}", app_id)
 }

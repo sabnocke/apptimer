@@ -25,7 +25,7 @@ TypeScript in Vite.
 
 ## General functionality
 
-- [ ] Add the ability to change the date of view
+- [x] Add the ability to change the date of view
 - [ ] Add ability to change some of the data from the frontend (editing)
 - [ ] Figure out categorization
   - Probably via parent process

@@ -41,3 +41,5 @@ sysinfo = "^0" # Needed only for windows, but might be useful even on linux
 arc-swap = "1.7.0"
 sqlx-cli = "0.8.6"
 tauri-plugin-fs = "2"
+reqwest = { version = "0.13", features = ["json"] }
+serde_json = "1.0"

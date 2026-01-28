@@ -4,10 +4,9 @@
     import {Timing, Box} from "$lib/types";
     import type {LogEntry} from "$lib/services/dataProvider.svelte";
     import {resolver} from "$lib/services";
+    import {selectiveSubscribe, selectedDate, dateFormatter} from "$lib/services";
 
-    $effect(() => {
-        return dataSource.subscribe(false);
-    });
+    $effect(() => selectiveSubscribe(selectedDate.value));
 
     interface DisplayData {
         id: number;
@@ -20,6 +19,7 @@
     interface Record {
         id: number
         name: string
+        reason: string
     }
 
     const parsedData_: DisplayData[] = $derived.by(() => {
@@ -32,32 +32,63 @@
             const f: LogEntry<Date>[] = dataSource.lookup.get(name) || [];
 
             if (f.length === 0) {
-                return Box.else({id, name});
+                return Box.error({id, name, reason: "Lookup doesn't exist"});
             }
+
+            /*const a = f.map(item => item.display_name)
+            const b = a.filter(item => !!item)
+
+            console.log(a, b);*/
+
+            const distinctNames = new Set<string>();
+            for (const one of f) {
+                if (one.display_name)
+                    distinctNames.add(one.display_name);
+            }
+
+            if (distinctNames.size > 1) {
+                console.warn(`[Ambiguous] ${name} has mixed labels:`, [...distinctNames]);
+                //! If need be, it can error here...
+            }
+
+            const resolvedName = distinctNames.values().next().value ?? name;
 
             const m = f.map(one => new Timing(one.start_time, (one.end_time ?? one.temp_end_time)));
 
-            const begin = Math.min(...f.map(one => one.start_time.valueOf()));
-            const end = Math.max(...f.map(one => (one.end_time ?? one.temp_end_time).valueOf()));
+            const {min, max} = f.reduce((acc, curr) => {
+                const start = curr.start_time.valueOf();
+                const end = (curr.end_time ?? curr.temp_end_time).valueOf();
+                return {
+                    min: Math.min(acc.min, start),
+                    max: Math.max(acc.max, end)
+                }
+            }, {min: Infinity, max: -Infinity});
+
             const time = m.reduce((acc, item) => acc.add(item), new Timing()).resync();
 
             const d: DisplayData = {
                 id,
-                name,
-                start: new Date(begin),
-                end: new Date(end),
+                name: resolvedName,
+                start: new Date(min),
+                end: new Date(max),
                 time
             }
 
             return Box.ok(d);
         })
 
-        const [success, failure] = Box.partition<DisplayData, Record>(...box);
+        const {values, error} = Box.consumeSafeFull(...box);
+        // console.log("values.length: ", values.length);
+        if (error) {
+            console.warn("Found error: ", error);
+        }
+
+        /*const [success, failure] = Box.partition<DisplayData, Record>(...box);
         failure.forEach(
             ({id, name}) => console.warn(`Entry (${id}, ${name}) doesn't have associated data!`)
-        );
+        );*/
 
-        return success;
+        return values;
     })
 
     const total: Timing = $derived(
@@ -94,6 +125,9 @@
             <div>{from}</div>
             <div>{message}</div>
         {/if}
+    {:else if sorted.length === 0}
+        {@const start = new Date(dataSource.timeRange.start)}
+        <div>Nothing to display for {dateFormatter.format(selectedDate.value)}</div>
     {:else}
         {#each sorted as {id, name, start, end, time} (id)}
             <OneListing

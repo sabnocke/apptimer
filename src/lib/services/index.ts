@@ -6,5 +6,15 @@ export {
     getTodayLogs,
     setLogging,
     checkAccess,
+    getSteamGameName,
 } from "./ipc"
-export {parsedDataCreator2, parsedDataCreatorSyn} from "./utils";
+export {
+    parsedDataCreator2,
+    parsedDataCreatorSyn,
+    selectiveSubscribe,
+    timeFormatter,
+    formatter,
+    dateFormatter
+} from "./utils";
+
+export {selectedDate} from "./selectedDate.svelte";
