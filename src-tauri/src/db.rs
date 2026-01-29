@@ -192,11 +192,6 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
 }
 #[allow(dead_code)]
 pub async fn final_store() {
-    let today = Utc::now()
-        .date_naive()
-        .and_hms_opt(0, 0, 0).unwrap()
-        .and_utc();
-
     let now = Utc::now();
 
     let pool = DB_CONN.get_or_init(init_db).await;
@@ -217,7 +212,7 @@ pub async fn final_store() {
     }
 }
 
-pub async fn load_steam_game_data(app_id: u32) -> Option<String> {
+pub async fn load_steam_game_data(app_id: u32) -> String {
     let pool = DB_CONN.get().expect("Failed to get db connection");
     let name = format!("steam_app_{}", app_id);
 
@@ -227,8 +222,9 @@ pub async fn load_steam_game_data(app_id: u32) -> Option<String> {
     )
         .fetch_optional(pool)
         .await
-        .ok()
-        .flatten()
-        .map(|d| d.display_name)
-        .flatten()
+        .inspect_err(|e| println!("[load_steam_game_data]: {}", e))
+        .ok().flatten()
+        .map(|record| record.display_name)
+        .unwrap_or_default()
+    
 }

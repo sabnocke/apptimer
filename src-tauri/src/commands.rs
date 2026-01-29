@@ -243,14 +243,14 @@ pub fn check_access() -> bool {
 }
 
 #[derive(serde::Deserialize)]
-struct SteamResponse {
+pub struct SteamResponse {
     #[serde(rename = "data")]
     details: Option<GameDetails>,
     success: bool,
 }
 
 #[derive(serde::Deserialize)]
-struct GameDetails {
+pub struct GameDetails {
     name: String,
 }
 
@@ -258,7 +258,7 @@ struct GameDetails {
 pub async fn fetch_steam_game_data(app_id: u32) -> Option<String> {
     let url = format!("https://store.steampowered.com/api/appdetails?appids={}", app_id);
 
-    let resp = reqwest::get(&url).await.ok()?.json::<serde_json::Value>().await.ok()?;
+    let resp = reqwest::get(&url).await.ok()?.json::<Value>().await.ok()?;
 
     let game_data = resp.get(app_id.to_string())?;
 
@@ -269,9 +269,11 @@ pub async fn fetch_steam_game_data(app_id: u32) -> Option<String> {
     None
 }
 
+#[allow(unused)]
 #[command]
 pub async fn fetch_load_steam_game_data(app_id: u32) -> String {
-    if let Some(name) = load_steam_game_data(app_id).await {
+    let name = load_steam_game_data(app_id).await;
+    if name != "" {
         return name;
     }
     if let Some(name) = fetch_steam_game_data(app_id).await {
@@ -279,4 +281,41 @@ pub async fn fetch_load_steam_game_data(app_id: u32) -> String {
     }
 
     format!("steam_app_{}", app_id)
+}
+
+#[derive(Debug, sqlx::FromRow, serde::Serialize)]
+pub struct AppDictionary {
+    process_key: String,
+    display_name: String,
+    icon_data: String,
+    category: String,
+}
+#[allow(unused)]
+#[command]
+pub async fn load_app_dictionary() -> Vec<AppDictionary> {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+    sqlx::query_as!(
+        AppDictionary,
+        "SELECT * FROM app_dictionary"
+    )
+        .fetch_all(pool)
+        .await
+        .unwrap_or_else(|_| vec![])
+}
+
+#[command]
+pub async fn update_display_name(process_key: String, display_name: String) -> bool {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+    let r = sqlx::query!(
+        "UPDATE app_dictionary SET display_name = ? WHERE process_key = ?",
+        process_key,
+        display_name
+    )
+    .execute(pool)
+    .await;
+
+    match r {
+        Ok(rows) => rows.rows_affected() > 0,
+        Err(_) => false
+    }
 }

@@ -1,5 +1,6 @@
 import {invoke} from "@tauri-apps/api/core";
 import type {LogEntry} from "$lib/services/dataProvider.svelte";
+import type {AppDictionary} from "$lib/types";
 
 export function getTodayLogs() {
     return invoke<LogEntry<string>[]>("get_today_logs");
@@ -26,5 +27,9 @@ export function checkAccess(): Promise<boolean> {
 }
 
 export function getSteamGameName(appId: number): Promise<string> {
-    return invoke<string>("fetch_load_steam_game_data");
+    return invoke<string>("fetch_load_steam_game_data", {app_id: appId});
+}
+
+export function loadAppDictionary(): Promise<AppDictionary[]> {
+    return invoke<AppDictionary[]>("load_app_dictionary");
 }

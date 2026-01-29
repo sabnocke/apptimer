@@ -1,11 +1,13 @@
 import {BaseDirectory, exists, mkdir, readTextFile, writeTextFile} from "@tauri-apps/plugin-fs";
 import {Box, SuperMap} from "$lib/types";
 import type {LogEntry} from "$lib/services/dataProvider.svelte";
+import {getSteamGameName, loadAppDictionary} from "$lib/services/ipc";
+import type {AppDictionary} from "$lib/types";
 
 class NameResolver {
     private _locationExists: boolean = false;
     private _mappingExists: boolean = false;
-    mapping: SuperMap<string, string> = new SuperMap();
+    mapping: SuperMap<string, AppDictionary> = new SuperMap();
 
     readonly cleanupRules = [
         {pattern: /-stable$/i, replace: ""},
@@ -27,69 +29,48 @@ class NameResolver {
     }
 
     constructor() {
-        this.load().then(b => {
-            b.actionRight(e => console.error(e));
-        });
+        this.load().then();
     }
 
-    private async load(): Promise<Box<boolean, unknown>> {
-        try {
-            if (!await exists("", {baseDir: BaseDirectory.AppConfig})) {
-                await mkdir("", {baseDir: BaseDirectory.AppConfig});
-                this._locationExists = true;
-            }
-            if (!await exists("mapping.json", {baseDir: BaseDirectory.AppConfig})) {
-                await writeTextFile("mapping.json", "{}", {baseDir: BaseDirectory.AppConfig});
-                this._mappingExists = true;
-            }
-
-            const contents = await readTextFile("mapping.json", {baseDir: BaseDirectory.AppConfig});
-            const userMap = JSON.parse(contents);
-
-            Object.entries(userMap).forEach(([key, val]) => {
-                this.mapping.set(key.toLowerCase(), String(val));
-            });
-
-            return Box.ok(true);
-        } catch (e) {
-            console.log(e);
-            return Box.error(e);
+    private async load(): Promise<void> {
+        const src = await loadAppDictionary();
+        const dict = new SuperMap<string, AppDictionary>();
+        for (const item of src) {
+            dict.set(item.processKey, item);
         }
+        this.mapping = dict;
     }
 
     private async resolveGameNameInBackground(id: string) {
-
+        return await getSteamGameName(parseInt(id, 10))
     }
 
-    resolveSteamGameName(item: string) {
+    resolveSteamGameName(item: string): Box<string, undefined> {
         // item is "steam_app_<number>"
         const match = item.match(/steam_app_(\d+)/);
         if (match) {
             const appId = match[1];
-            let resolvedName = this.mapping.fetch(appId);
-            if(resolvedName.isInElse) {
-                this.resolveGameNameInBackground(appId);
-                resolvedName.bindLeft(`Steam Game ${appId}`);
+            let resolvedName = this.mapping.fetch(appId).mapLeft(b => b.displayName);
+            if(!resolvedName.hasContent || resolvedName.isInElse) {
+                this.resolveGameNameInBackground(appId)
+                    .then(resolvedName.bindLeft)
+                    .catch(e => resolvedName.bindLeft(`Steam Game ${appId}`));
             }
+            return resolvedName
         }
+        return Box.else(undefined);
     }
 
     //? Will be used later
-    async updateMapping(key: string, value: string): Promise<Box<boolean, unknown>> {
-        try {
-            if (!(this._locationExists && this._mappingExists)) {
-                return Box.ok(false);
-            }
+    async storeDisplayName(processKey: string, newDisplayName: string): Promise<boolean> /*?maybe*/ {
+        const r = this.mapping.modify(processKey, item => {
+            item.displayName = newDisplayName;
+            return item;
+        });
 
-            this.mapping.set(key, value);
-            await writeTextFile("mapping.json",
-                JSON.stringify(this.mapping, null, 2),
-                {baseDir: BaseDirectory.AppConfig});
+        //TODO missing IPC fn to update app dictionary
 
-            return Box.ok(true);
-        } catch (e) {
-            return Box.error(e)
-        }
+        return true;
     }
 
     capitalize(word: string): string {
@@ -101,6 +82,7 @@ class NameResolver {
             return "UNKNOWN"
         }
 
+        // PWA check regex
         if (/^[a-z]+-[a-z]{32}-.+$/.test(item.process_name)) {
             console.log("[DETECTED PWA pattern]");
             // window title can be: <program name> - <something>, I should remove both the colon and something
@@ -112,7 +94,17 @@ class NameResolver {
             return this.capitalize(someName);
         }
 
-        const vb = this.mapping.fetch(item.process_name).unwrapOr("");
+        if (/steam_app_\d+/.test(item.process_name)) {
+            const val = this.resolveSteamGameName(item.process_name);
+            //? Maybe the window title has some useful information
+            console.log(`For ${item.process_name} exists window title: ${item.window_title}`);
+            if (val.isOk) return val.unwrapOk();
+        }
+
+        const vb = this.mapping
+            .fetch(item.process_name)
+            .mapLeft(b => b.displayName)
+            .unwrapOr("");
         if (vb !== "") return vb;
 
         let newName: string = item.process_name;
@@ -128,7 +120,10 @@ class NameResolver {
         if (!name) return "Unknown";
 
         //1. find if mapping exists
-        const vb = this.mapping.fetch(name).unwrapOr("");
+        const vb = this.mapping
+            .fetch(name)
+            .mapLeft(b => b.displayName)
+            .unwrapOr("");
         if (vb !== "") return vb;
 
         //2. if a rule exists for it

@@ -26,3 +26,10 @@ export interface GanttRow {
 }
 
 export type KnownSelect = "names" | "data"
+
+export interface AppDictionary {
+    processKey: string;
+    displayName: string;
+    iconData: string;
+    category: string;
+}

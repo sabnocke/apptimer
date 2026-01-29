@@ -33,4 +33,13 @@ export class SuperMap<K, V> extends Map<K, V> {
             return fallback ? Box.ok(fallback) : Box.error(undefined);
         }
     }
+
+    modify(key: K, fn: (item: V) => V) {
+        const val = this.get(key);
+        if (val !== undefined) {
+            this.set(key, fn(val));
+            return true;
+        }
+        return false;
+    }
 }

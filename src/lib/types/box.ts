@@ -12,6 +12,10 @@ export class Box<Ok, Else> {
         return this.isOk_;
     }
 
+    get hasContent(): boolean {
+        return this.isOk_ && !!this.val;
+    }
+
     private constructor(
         v: Ok | Else,
         ok: boolean

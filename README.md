@@ -47,6 +47,8 @@ TypeScript in Vite.
   - Seems to be issue on Vivaldi and any PWA
   - `Vivaldi-bobcidbgoopfnikbbgihiiihapdmbplc-Def` >> `Notion`
   - Or since it still uses Vivaldi group them together (the simpler solution)
+- [ ] Load `mapping` from DB instead of a file
+  - [ ] Also remove the file permission thing
 
 # BUGS
 
