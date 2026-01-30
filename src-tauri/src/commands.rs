@@ -4,7 +4,11 @@ use tauri::command;
 use reqwest;
 use serde_json::{Value,};
 use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
-use super::db::{DB_CONN, final_store, load_steam_game_data};
+use super::db::{
+    DB_CONN, 
+    final_store, 
+    load_steam_game_data,
+};
 
 
 static ALLOW_LOGGING: AtomicBool = AtomicBool::new(true);
@@ -272,15 +276,17 @@ pub async fn fetch_steam_game_data(app_id: u32) -> Option<String> {
 #[allow(unused)]
 #[command]
 pub async fn fetch_load_steam_game_data(app_id: u32) -> String {
+    let base_name = format!("steam_app_{}", app_id);
     let name = load_steam_game_data(app_id).await;
-    if name != "" {
+    if !name.is_empty() {
         return name;
     }
     if let Some(name) = fetch_steam_game_data(app_id).await {
+        update_display_name(base_name, name.clone());
         return name;
     }
 
-    format!("steam_app_{}", app_id)
+    base_name
 }
 
 #[derive(Debug, sqlx::FromRow, serde::Serialize)]
@@ -290,7 +296,7 @@ pub struct AppDictionary {
     icon_data: String,
     category: String,
 }
-#[allow(unused)]
+
 #[command]
 pub async fn load_app_dictionary() -> Vec<AppDictionary> {
     let pool = DB_CONN.get().expect("Failed to get db connection");
@@ -300,14 +306,19 @@ pub async fn load_app_dictionary() -> Vec<AppDictionary> {
     )
         .fetch_all(pool)
         .await
-        .unwrap_or_else(|_| vec![])
+        .unwrap_or_default()
 }
 
 #[command]
 pub async fn update_display_name(process_key: String, display_name: String) -> bool {
     let pool = DB_CONN.get().expect("Failed to get db connection");
     let r = sqlx::query!(
-        "UPDATE app_dictionary SET display_name = ? WHERE process_key = ?",
+        r#"
+        INSERT INTO app_dictionary (process_key, display_name)
+        VALUES (?, ?)
+        ON CONFLICT(process_key)
+        DO UPDATE SET display_name = excluded.display_name
+        "#,
         process_key,
         display_name
     )
@@ -318,4 +329,64 @@ pub async fn update_display_name(process_key: String, display_name: String) -> b
         Ok(rows) => rows.rows_affected() > 0,
         Err(_) => false
     }
+}
+
+
+#[derive(Debug, sqlx::FromRow, serde::Serialize)]
+pub struct AppStat {
+    pub final_name: String,
+    pub process_key: String,
+    pub total_seconds: i64,
+    pub session_count: i64,
+}
+
+#[command]
+pub async fn get_stats_in_range(
+    start_date: &str,   // "2025-01-01"
+    end_date: &str     // "2025-01-07"
+) -> Result<Vec<AppStat>, String> {
+
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+
+    // We query the Daily View and aggregate the results for the requested window.
+    let stats = sqlx::query_as!(
+        AppStat,
+        r#"
+        SELECT
+            final_name,
+            process_key,
+            COALESCE(SUM(total_seconds), 0) as total_seconds,
+            COALESCE(SUM(session_count), 0) as session_count
+        FROM view_smart_app_stats
+        WHERE day >= ? AND day <= ?
+        GROUP BY process_key
+        ORDER BY total_seconds DESC
+        "#,
+        start_date,
+        end_date
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(stats)
+}
+
+
+#[command]
+pub async fn add_recognition_rule(
+    process: String,
+    pattern: String,
+    name: String
+) -> Result<bool, String> {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+    
+    let result = sqlx::query!(
+        "INSERT OR IGNORE INTO app_recognition_rules (process_key, title_pattern, display_name) VALUES (?, ?, ?)",
+        process, pattern, name
+    )
+    .execute(pool)
+    .await.map_err(|e| e.to_string())?;
+
+    Ok(result.rows_affected() > 0)
 }

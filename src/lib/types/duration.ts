@@ -1,7 +1,7 @@
 import {Temporal} from "@js-temporal/polyfill";
 import {Box} from "$lib/types/box";
 
-export class Timing {
+export class Duration {
   public days: number = 0;
   public hours: number = 0;
   public minutes: number = 0;
@@ -28,11 +28,11 @@ export class Timing {
   }
 
   static from_valueOf(start: number, end: number) {
-    return new Timing(new Date(start), new Date(end));
+    return new Duration(new Date(start), new Date(end));
   }
 
   static from_seconds(seconds: number) {
-    return (new Timing()).secondsToFull(seconds);
+    return (new Duration()).secondsToFull(seconds);
   }
 
 
@@ -51,7 +51,7 @@ export class Timing {
     return this;
   }
 
-  public add(other: Timing) {
+  public add(other: Duration) {
     this.days += other.days;
     this.hours += other.hours;
     this.minutes += other.minutes;
@@ -80,16 +80,33 @@ export class Timing {
     return this;
   }
 
-  private stringify(val: number): string {
+  private static stringify(val: number): string {
     return (val < 10 ? "0" : "") + String(val)
   }
 
   public format() {
-    const seconds = this.stringify(this.seconds);
-    const minutes = this.stringify(this.minutes);
-    const hours = this.stringify(this.hours);
+    const seconds = Duration.stringify(this.seconds);
+    const minutes = Duration.stringify(this.minutes);
+    const hours = Duration.stringify(this.hours);
 
     return (this.days > 0 ? `${this.days}:` : "") +
         `${hours}:${minutes}:${seconds}`;
+  }
+
+  static format_seconds(total_seconds: number): string {
+    total_seconds = Math.floor(total_seconds);
+    const days = Math.floor(total_seconds / 86400);
+    total_seconds %= 86400;
+
+    const hours = Math.floor(total_seconds / 3600);
+    total_seconds %= 3600;
+
+    const minutes = Math.floor(total_seconds / 60);
+    const seconds = total_seconds % 60;
+
+    return (days > 0 ? days + ":" : "") +
+        Duration.stringify(hours) + ":" +
+        Duration.stringify(minutes) + ":" +
+        Duration.stringify(seconds)
   }
 }

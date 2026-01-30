@@ -7,7 +7,9 @@ export {
     setLogging,
     checkAccess,
     getSteamGameName,
-    loadAppDictionary
+    loadAppDictionary,
+    updateDisplayName,
+    getStatsInRange
 } from "./ipc"
 export {
     parsedDataCreator2,

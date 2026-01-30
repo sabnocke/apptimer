@@ -1,4 +1,4 @@
-import {AsyncBox, type GanttTask, Timing} from "$lib/types";
+import {AsyncBox, type GanttTask, Duration} from "$lib/types";
 import {dataSource} from "$lib/services/dataProvider.svelte";
 
 interface DisplayData {
@@ -6,7 +6,7 @@ interface DisplayData {
     name: string;
     start: Date;
     end: Date;
-    time: Timing
+    time: Duration
 }
 
 export function parsedDataCreator2() {
@@ -15,17 +15,17 @@ export function parsedDataCreator2() {
         .mapLeft(all => {
             return all.map<DisplayData>((name, id) => {
                 const f = dataSource.data.filter(d => d.process_name === name);
-                const m = f.map(d => new Timing(d.start_time, d.end_time ?? d.temp_end_time));
+                const m = f.map(d => new Duration(d.start_time, d.end_time ?? d.temp_end_time));
 
                 const m2 = f.map<[Date, Date | null, Date]>(d => [d.start_time, d.end_time, d.temp_end_time]);
                 const begin = Math.min(...f.map(d => d.start_time.valueOf()));
                 const end = Math.min(...f.map(d => (d.end_time ?? d.temp_end_time).valueOf()));
-                const sum = m.reduce((acc, item) => acc.add(item), new Timing());
+                const sum = m.reduce((acc, item) => acc.add(item), new Duration());
 
                 if (name === "jetbrains-rustrover") {
                     console.log(m2);
                     console.log(m2.map(([a, b, c]) => (b ?? c).valueOf() - a.valueOf()));
-                    console.log(m2.map(([a, b, c]) => new Timing(a, b ?? c)));
+                    console.log(m2.map(([a, b, c]) => new Duration(a, b ?? c)));
                 }
 
 
@@ -46,11 +46,11 @@ export function parsedDataCreatorSyn() {
 
     return dataSource.getUniqueNames.map<DisplayData>((name, id) => {
         const f = dataSource.data.filter(d => d.process_name === name);
-        const m = f.map(one => new Timing(one.start_time, (one.end_time ?? one.temp_end_time)));
+        const m = f.map(one => new Duration(one.start_time, (one.end_time ?? one.temp_end_time)));
 
         const begin = Math.min(...f.map(one => one.start_time.valueOf()));
         const end = Math.max(...f.map(one => (one.end_time ?? one.temp_end_time).valueOf()));
-        const time = m.reduce((acc, item) => acc.add(item), new Timing()).resync();
+        const time = m.reduce((acc, item) => acc.add(item), new Duration()).resync();
 
         return {
             id, name, time,
@@ -60,12 +60,12 @@ export function parsedDataCreatorSyn() {
     });
 }
 
-export function selectiveSubscribe(date: Date, print: boolean = true): (() => void) {
+export function selectiveSubscribe(date: Date, print: boolean = true, usePolling: boolean = false): (() => void) {
     console.log("selectiveSubscribe's date: ", date);
     const isToday: boolean = date.toDateString() === new Date().toDateString();
     if (isToday) {
         if (print) console.log("📅 Viewing Today: Starting Real-time Listener...");
-        return dataSource.subscribe(false);
+        return dataSource.subscribe(usePolling);
     } else {
         if (print) console.log("📅 Viewing Past: Real-time updates disabled.");
         return () => null;

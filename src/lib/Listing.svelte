@@ -1,7 +1,7 @@
 <script lang="ts">
     import {dataSource} from "$lib/services";
     import OneListing from "$lib/OneListing.svelte";
-    import {Timing, Box} from "$lib/types";
+    import {Duration, Box} from "$lib/types";
     import type {LogEntry} from "$lib/services/dataProvider.svelte";
     import {resolver} from "$lib/services";
     import {selectiveSubscribe, selectedDate, dateFormatter} from "$lib/services";
@@ -13,7 +13,7 @@
         name: string;
         start: Date;
         end: Date;
-        time: Timing;
+        time: Duration;
     }
 
     interface Record {
@@ -53,7 +53,7 @@
 
             const resolvedName = distinctNames.values().next().value ?? name;
 
-            const m = f.map(one => new Timing(one.start_time, (one.end_time ?? one.temp_end_time)));
+            const m = f.map(one => new Duration(one.start_time, (one.end_time ?? one.temp_end_time)));
 
             const {min, max} = f.reduce((acc, curr) => {
                 const start = curr.start_time.valueOf();
@@ -64,7 +64,7 @@
                 }
             }, {min: Infinity, max: -Infinity});
 
-            const time = m.reduce((acc, item) => acc.add(item), new Timing()).resync();
+            const time = m.reduce((acc, item) => acc.add(item), new Duration()).resync();
 
             const d: DisplayData = {
                 id,
@@ -91,8 +91,8 @@
         return values;
     })
 
-    const total: Timing = $derived(
-        Timing.from_seconds(
+    const total: Duration = $derived(
+        Duration.from_seconds(
             parsedData_
                 .filter(value => value !== null)
                 .map(one => one.time.collapseToSeconds())
@@ -108,7 +108,7 @@
         })
     })
 
-    function getPercentage(up: Timing, down: Timing): string {
+    function getPercentage(up: Duration, down: Duration): string {
         const ups = up.collapseToSeconds();
         const downs = down.collapseToSeconds();
         if (downs === 0) return "0%";

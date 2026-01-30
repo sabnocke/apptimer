@@ -1,6 +1,6 @@
 <script lang="ts">
     import {dataSource} from "$lib/services/dataProvider.svelte";
-    import {Timing} from "$lib/types";
+    import {Duration} from "$lib/types";
     import RadioButtons from "$lib/RadioButtons.svelte";
     import Listing from "$lib/Listing.svelte";
     import {goto} from "$app/navigation";
@@ -9,6 +9,7 @@
     import {onMount} from "svelte";
     import {Temporal} from "@js-temporal/polyfill";
     import {selectiveSubscribe, selectedDate, timeFormatter, dateFormatter} from "$lib/services";
+    import Listing2 from "$lib/Listing2.svelte";
 
 
     const ALLOW_DEBUG_PRINT: boolean = true;
@@ -37,7 +38,7 @@
     })*/
 
     const total = $derived.by(() => {
-        return Timing.from_seconds(dataSource.timeRange.totalSeconds)
+        return Duration.from_seconds(dataSource.timeRange.totalSeconds)
     });
 
     let allowLogging: boolean = $state(true);
@@ -124,7 +125,7 @@
     }*/
 
     function getFormattedTimeRange(): [string, string, string] {
-        console.log("dataSource.data: ", $state.snapshot(dataSource.data));
+        // console.log("dataSource.data: ", $state.snapshot(dataSource.data));
         if (dataSource.data.length !== 0) {
             const first = dateFormatter.format(dataSource.timeRange.start);
             //TODO what to do when start's date != end's date
@@ -134,14 +135,14 @@
             return [first, second, third];
         } else {
             const first = dateFormatter.format(selectedDate.value);
-            console.log("else first: ", first);
+            // console.log("else first: ", first);
             return [first, "", ""];
         }
     }
 
-    $effect(() => {
+    /*$effect(() => {
         dPrint(getFormattedTimeRange());
-    })
+    })*/
 
 
 </script>
@@ -180,7 +181,8 @@
         </div>
     </div>
     <div class="display">
-        <Listing/>
+<!--        <Listing/>-->
+        <Listing2 />
     </div>
 </main>
 

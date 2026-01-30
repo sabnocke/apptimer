@@ -1,6 +1,6 @@
-import {Box, AsyncBox} from "$lib/types";
+import {Box, AsyncBox, type AppStats} from "$lib/types";
 import {listen} from "@tauri-apps/api/event";
-import {getDayLogs, getUniqueNames} from "$lib/services";
+import {getDayLogs, getUniqueNames, getStatsInRange} from "$lib/services";
 import {resolver} from "$lib/services";
 
 export interface LogEntry<T> {
@@ -20,12 +20,13 @@ interface IRow {
 }
 
 interface ErrorRecord {
-    from?: "fetchData" | "uniqueNames"
+    from?: string
     message?: string
 }
 
 class Provider extends Array {
     data: LogEntry<Date>[] = $state<LogEntry<Date>[]>([]);
+    data2: AppStats[] = $state([]);
     private uniqueNames_: string[] = $state<string[]>([]);
     lookup: Map<string, LogEntry<Date>[]> = $derived(Map.groupBy(this.data, val => val.process_name));
 
@@ -105,11 +106,17 @@ class Provider extends Array {
         return true;
     }
 
-    private startPolling(usePolling: boolean = true, useListen: boolean = false, pollInterval: number = 1000) {
+    private startPolling(
+        usePolling: boolean = true,
+        useListen: boolean = false,
+        pollInterval: number = 1000
+    ): void {
         this.synUniqueNames();
         if (usePolling) {
+            console.log("usePolling");
             this.load();
             this.intervalId = setInterval(() => this.load(), pollInterval);
+            this.altLoadSpecific(new Date());
         } else if (useListen)
             this.newListener();
     }
@@ -193,6 +200,40 @@ class Provider extends Array {
             this.loadedPast = true;
         }
         this.preprocess();
+    }
+
+    public async altLoadSpecific(date: Date = new Date(), silent: boolean = false): Promise<void> {
+        console.log("[altLoadSpecific]: called");
+
+        if (!silent)
+            this.loading = true;
+
+        try {
+            const b = (await this.altFetchData(date))
+                .actionRight(e => this.error_ = {from: "fetchData", message: String(e)})
+                .unwrapOr([]);
+
+            this.data2 = b;
+
+            /*if (JSON.stringify(b) !== JSON.stringify(this.data2))
+                this.data2 = b;*/
+        } catch (e) {
+            console.error("Catch block error: ", e);
+            this.error_ = { from: "altLoadSpecific", message: String(e) };
+        } finally {
+            this.loading = false;
+            console.log("Exit (correct data):", $state.snapshot(this.data2));
+        }
+    }
+
+    public async altFetchData(date: Date = new Date()): Promise<Box<AppStats[], unknown>> {
+        try {
+            const r = await getStatsInRange(date);
+            console.log("altFetchData", r);
+            return Box.ok(r);
+        } catch (e) {
+            return Box.error(e);
+        }
     }
 
     public async fetchData(): Promise<Box<Array<LogEntry<Date>>, unknown>> {

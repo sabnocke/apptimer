@@ -27,7 +27,7 @@ TypeScript in Vite.
 
 - [x] Add the ability to change the date of view
 - [ ] Add ability to change some of the data from the frontend (editing)
-- [ ] Figure out categorization
+- [ ] Figure out categorization?
   - Probably via parent process
 - [X] Add ability to pause tracking (will need IPC call)
 - [ ] Add dialog to either close the program (exit) or minimize it (hide) upon pressing exit button
@@ -37,7 +37,7 @@ TypeScript in Vite.
 - [x] Remove Gantt timeline
 - [x] Remove longestTasks and related code from Provider or elsewhere
 - [ ] Figure out a different way of visualizing the data
-- [ ] ?Add treemap for monthly view
+- [ ] Add [stacked bar chart](https://www.chartjs.org/docs/latest/samples/bar/stacked.html)
 - [ ] Overhaul UI/UX to a more unified vision
 
 ## Name resolving
@@ -49,6 +49,15 @@ TypeScript in Vite.
   - Or since it still uses Vivaldi group them together (the simpler solution)
 - [ ] Load `mapping` from DB instead of a file
   - [ ] Also remove the file permission thing
+- [ ] Test steam name resolver
+- [ ] Add ability to add resolver rules from frontend
+
+## Clean-up
+
+- [ ] Remove unnecessary `println!` in rust code
+- [ ] Remove unnecessary `console.log` in ts code
+- [ ] Remove deprecated code
+- [ ] Remove unused packages (mostly in node_modules / bun)
 
 # BUGS
 
@@ -64,4 +73,6 @@ TypeScript in Vite.
 	- in `+page.svelte`
 	- in `+layout.svelte`
 	- in `root.svelte`
-    - seems to be related to `uniqueNames_`    
+    - seems to be related to `uniqueNames_`
+- [BUG]: `[Error] Unhandled Promise Rejection: window.close not allowed.` Permissions associated with this command: `core:window:allow-close`
+  (@tauri-apps_api_window.js:1819)

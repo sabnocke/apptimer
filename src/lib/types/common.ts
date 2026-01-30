@@ -1,9 +1,9 @@
-import {Timing} from "$lib/types/timing";
+import {Duration} from "$lib/types/duration";
 
 export interface SingleEntry {
     id: number,
     title: string,
-    time: Timing
+    time: Duration
 }
 
 export interface GanttTask<T> {
@@ -32,4 +32,11 @@ export interface AppDictionary {
     displayName: string;
     iconData: string;
     category: string;
+}
+
+export interface AppStats {
+    final_name: string;
+    process_key: string;
+    total_seconds: number;
+    session_count: number;
 }

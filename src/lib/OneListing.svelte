@@ -9,8 +9,8 @@
     name: string,
     percentage: string
     time: string
-    start: Date
-    end: Date
+    start?: Date
+    end?: Date
   } = $props();
 
   const formatter = Intl.DateTimeFormat("cs-CZ", {
@@ -18,6 +18,7 @@
     timeStyle: "short",
   });
 
+  //TODO instead of placing the if into HTML do it in script
 </script>
 
 <div class="container">
@@ -27,8 +28,12 @@
     <div class="range" style:--p={percentage}></div>
   </div>
   <div class="sub-container">
-    <div>{formatter.format(start)}</div>
-    <div>{formatter.format(end)}</div>
+    {#if start}
+      <div>{formatter.format(start)}</div>
+    {/if}
+    {#if end}
+      <div>{formatter.format(end)}</div>
+    {/if}
     <span class="time">{time}</span>
   </div>
 </div>

@@ -1,8 +1,9 @@
 import {BaseDirectory, exists, mkdir, readTextFile, writeTextFile} from "@tauri-apps/plugin-fs";
 import {Box, SuperMap} from "$lib/types";
 import type {LogEntry} from "$lib/services/dataProvider.svelte";
-import {getSteamGameName, loadAppDictionary} from "$lib/services/ipc";
+import {getSteamGameName, loadAppDictionary, updateDisplayName} from "$lib/services/ipc";
 import type {AppDictionary} from "$lib/types";
+import {isSystemNoise} from "$lib/types";
 
 class NameResolver {
     private _locationExists: boolean = false;
@@ -61,16 +62,15 @@ class NameResolver {
         return Box.else(undefined);
     }
 
-    //? Will be used later
     async storeDisplayName(processKey: string, newDisplayName: string): Promise<boolean> /*?maybe*/ {
         const r = this.mapping.modify(processKey, item => {
             item.displayName = newDisplayName;
             return item;
         });
 
-        //TODO missing IPC fn to update app dictionary
+        if (r) return r;
 
-        return true;
+        return await updateDisplayName(processKey, newDisplayName);
     }
 
     capitalize(word: string): string {
@@ -82,6 +82,10 @@ class NameResolver {
             return "UNKNOWN"
         }
 
+        if (isSystemNoise(item.process_name)) {
+            return "Idle/System";
+        }
+
         // PWA check regex
         if (/^[a-z]+-[a-z]{32}-.+$/.test(item.process_name)) {
             console.log("[DETECTED PWA pattern]");
@@ -90,7 +94,6 @@ class NameResolver {
             console.log("[SPLIT]:", maybeName);
             const someName = maybeName[0].replace(/\s/, "");
             console.log("[REPLACE]:", someName);
-            // hopefully this will be a usable value
             return this.capitalize(someName);
         }
 
@@ -136,10 +139,6 @@ class NameResolver {
 
         return this.capitalize(newName);
     }
-}
-
-class SteamNameResolver {
-    //TODO
 }
 
 export const resolver = new NameResolver();

@@ -11,9 +11,12 @@ use crate::commands::{
     manual_cleanup,
     set_logging,
     check_access,
-    fetch_load_steam_game_data
+    fetch_load_steam_game_data,
+    load_app_dictionary,
+    get_stats_in_range,
+    add_recognition_rule
 };
-use crate::db::{init_db, final_store};
+use crate::db::{init_db};
 use os_utils::get_process_info;
 use tokio::time::{sleep, Duration};
 use tauri::{
@@ -90,7 +93,10 @@ fn main() {
             manual_cleanup,
             set_logging,
             check_access,
-            fetch_load_steam_game_data
+            fetch_load_steam_game_data,
+            load_app_dictionary,
+            get_stats_in_range,
+            add_recognition_rule,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
