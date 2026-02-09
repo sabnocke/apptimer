@@ -1,6 +1,8 @@
 import {invoke} from "@tauri-apps/api/core";
 import type {LogEntry} from "$lib/services/dataProvider.svelte";
 import type {AppDictionary, AppStats} from "$lib/types";
+import type {ChartDay, DailyAppStat} from "$lib/services/chartUtils";
+import {Box} from "$lib/types";
 
 export function getTodayLogs() {
     //! maybe deprecated
@@ -50,6 +52,9 @@ export function getStatsInRange(start: Date | string, end?: Date | string): Prom
 }
 
 export function addRecognitionRule(process: string, pattern: string, displayName: string): Promise<boolean> {
+    /**
+     * Adds a new display name for process given a window title pattern
+     */
     try {
         return invoke<boolean>("add_recognition_rule", {
             process: process,
@@ -59,5 +64,40 @@ export function addRecognitionRule(process: string, pattern: string, displayName
     } catch (e) {
         console.error("Failed to save a rule", e);
         return Promise.resolve(false);
+    }
+}
+
+export function getDailyBreakdown(startDate: Date | string, endDate: Date | string): Promise<DailyAppStat[]> {
+    const formatDate = (d: Date | string) =>
+        typeof d !== "string" ? d.toLocaleDateString("en-CA") : d;
+
+    let localStart = formatDate(startDate);
+    let localEnd = endDate ? formatDate(endDate) : localStart;
+
+    return invoke<DailyAppStat[]>("get_daily_breakdown", {
+        startDate: localStart,
+        endDate: localEnd
+    });
+}
+
+export function findWindowTitles(process_name: string): Box<Promise<string[]>, unknown> {
+    try {
+        return Box.ok(invoke<string[]>("find_window_titles", {processName: process_name}));
+    } catch (e) {
+        return Box.error(e);
+    }
+}
+
+export function findPatternMatches(
+    processKey: string,
+    pattern: string
+): Box<Promise<string[]>, unknown> {
+    try {
+        return Box.ok(invoke<string[]>("find_pattern_matches", {
+            processKey: processKey,
+            pattern: pattern
+        }));
+    } catch (e) {
+        return Box.error(e);
     }
 }

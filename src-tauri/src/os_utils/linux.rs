@@ -4,7 +4,7 @@ use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 
 use super::{LAST_NAME, LAST_TITLE};
-use crate::db::log_switch;
+use crate::db::{log_switch, log_switch_refresh};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct WindowInfo {
@@ -75,6 +75,32 @@ pub async fn get_process_info(handle: &AppHandle) {
                     let _ = handle.emit("activity_change", updates);
                 }
                 Err(e) => println!("Error: {}", e),
+            }
+
+            LAST_NAME.store(Arc::new(window.process_name));
+            LAST_TITLE.store(Arc::new(window.title));
+        }
+    }
+}
+
+pub async fn get_process_info_(handle: &AppHandle) {
+    let last_name = LAST_NAME.load();
+    let last_title = LAST_TITLE.load();
+
+    if let Some(window) = get_kde_active_window().await {
+        if **last_name != window.process_name || **last_title != window.title {
+            println!(
+                "Switch! {} -> {} | UTC: {}, Local: {}",
+                last_name, window.process_name,
+                Utc::now(),
+                Local::now()
+            );
+
+            match log_switch_refresh(&window.process_name, &window.title).await {
+                Ok(_b) => {
+                    _ = handle.emit("refresh-source", ());
+                },
+                Err(e) => println!("Error: {}", e)
             }
 
             LAST_NAME.store(Arc::new(window.process_name));

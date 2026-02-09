@@ -1,8 +1,8 @@
 <script lang="ts">
     import {dataSource} from "$lib/services";
-    import OneListing from "$lib/OneListing.svelte";
+    import OneListing from "$lib/components/OneListing.svelte";
     import {Duration, Box} from "$lib/types";
-    import type {LogEntry} from "$lib/services/dataProvider.svelte";
+    import type {LogEntry} from "$lib/services/dataProvider.svelte.js";
     import {resolver} from "$lib/services";
     import {selectiveSubscribe, selectedDate, dateFormatter} from "$lib/services";
 

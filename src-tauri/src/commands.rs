@@ -1,4 +1,5 @@
 use chrono::{DateTime, Local, TimeZone, Utc};
+use serde::Serialize;
 use std::fmt;
 use tauri::command;
 use reqwest;
@@ -372,6 +373,43 @@ pub async fn get_stats_in_range(
     Ok(stats)
 }
 
+#[derive(Debug, sqlx::FromRow, Serialize)]
+pub struct DailyAppStat {
+    pub day: String,
+    pub final_name: String,
+    pub process_key: String,
+    pub total_seconds: i64,
+    pub session_count: i64,
+}
+
+#[command]
+pub async fn get_daily_breakdown(
+    start_date: String,
+    end_date: String
+) -> Result<Vec<DailyAppStat>, String> {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+    
+    let stats = sqlx::query_as!(
+        DailyAppStat,
+        r#"
+        SELECT 
+            day as "day!", 
+            final_name as "final_name!", 
+            process_key as "process_key!", 
+            COALESCE(total_seconds, 0) as total_seconds, 
+            COALESCE(session_count, 0) as session_count
+        FROM view_smart_app_stats
+        WHERE day >= ? AND day <= ?
+        ORDER BY day ASC, total_seconds DESC
+        "#,
+        start_date, end_date
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(stats)
+}
 
 #[command]
 pub async fn add_recognition_rule(
@@ -389,4 +427,49 @@ pub async fn add_recognition_rule(
     .await.map_err(|e| e.to_string())?;
 
     Ok(result.rows_affected() > 0)
+}
+
+#[command]
+pub async fn find_window_titles(process_name: String) -> Result<Vec<String>, String> {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+    let result = sqlx::query_scalar!(
+        r#"
+        SELECT ev.window_title
+        FROM events ev
+        JOIN processes proc ON proc.id = ev.process_id
+        WHERE proc.name = ?
+        "#,
+        process_name
+    )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(result)
+}
+
+#[command]
+pub async fn find_pattern_matches(
+    process_key: String,
+    pattern: String
+) -> Result<Vec<String>, String> {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+
+    let results = sqlx::query_scalar!(
+        r#"
+        SELECT DISTINCT ev.window_title
+        FROM events ev
+        JOIN processes proc ON ev.process_id = proc.id
+        WHERE proc.name = ? AND ev.window_title LIKE ?
+        LIMIT 5
+        "#,
+        process_key,
+        pattern
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(results)
+
 }

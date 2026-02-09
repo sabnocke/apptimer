@@ -1,6 +1,6 @@
 import {Box, AsyncBox, type AppStats} from "$lib/types";
 import {listen} from "@tauri-apps/api/event";
-import {getDayLogs, getUniqueNames, getStatsInRange} from "$lib/services";
+import {getDayLogs, getUniqueNames, getStatsInRange, type DailyAppStat, getDailyBreakdown} from "$lib/services";
 import {resolver} from "$lib/services";
 
 export interface LogEntry<T> {
@@ -26,7 +26,8 @@ interface ErrorRecord {
 
 class Provider extends Array {
     data: LogEntry<Date>[] = $state<LogEntry<Date>[]>([]);
-    data2: AppStats[] = $state([]);
+    data2 = $state<AppStats[]>([]);
+    data3 = $state<DailyAppStat[]>([]);
     private uniqueNames_: string[] = $state<string[]>([]);
     lookup: Map<string, LogEntry<Date>[]> = $derived(Map.groupBy(this.data, val => val.process_name));
 
@@ -51,6 +52,8 @@ class Provider extends Array {
     });
 
     get getUniqueNames(): string[] {
+        //! UNUSED in Listing2
+        //! Possibly unnecessary
         return this.uniqueNames_;
     }
 
@@ -62,16 +65,19 @@ class Provider extends Array {
         return this.error_;
     }
 
-    subscribe(usePolling: boolean = true, pollingRate: number = 1000) {
+    subscribe(type: "range" | "daily") {
+        const start = type === "range" ? this.startListenRange : this.startListenDaily;
+        const stop = type === "range" ? this.stopListenRange : this.stopListenDaily;
+
         this.listeners += 1;
         if (this.listeners === 1) {
-            this.startPolling(usePolling, !usePolling, pollingRate);
+            start();
         }
 
         return () => {
             this.listeners -= 1;
             if (this.listeners === 0) {
-                this.stopPolling();
+                stop();
             }
         }
     }
@@ -86,6 +92,8 @@ class Provider extends Array {
     }
 
     private newListener() {
+        //! listen can't be used in this way, as it currently doesn't match with what the provider gives
+        //TODO change the listen to wait for "refresh" signal and then update the source
         listen<LogEntry<string>[]>("activity_change", event => {
             console.log("new items", event.payload);
             event.payload.forEach(entry => {
@@ -94,6 +102,22 @@ class Provider extends Array {
         }).then(fn => this.unListen_ = fn);
         this.load();
         this.listenerActive = true;
+    }
+
+    public newPolling(pollRate: number = 5000): (() => void) {
+        this.listeners++;
+        if (this.listeners == 1) {
+            console.log("...newPolling...");
+            this.altLoadSpecific().then();
+            this.intervalId = setInterval(() => this.altLoadSpecific().then(), pollRate);
+        }
+
+        return () => {
+            this.listeners--;
+            if (this.listeners == 0) {
+                this.stopPolling();
+            }
+        }
     }
 
     private removeListener() {
@@ -116,7 +140,7 @@ class Provider extends Array {
             console.log("usePolling");
             this.load();
             this.intervalId = setInterval(() => this.load(), pollInterval);
-            this.altLoadSpecific(new Date());
+            this.altLoadSpecific(new Date()).then();
         } else if (useListen)
             this.newListener();
     }
@@ -135,7 +159,42 @@ class Provider extends Array {
         this.load();
     }
 
+    private startListenRange(): void {
+        listen<null>("refresh-source", payload => {
+            dataSource.loadGetStatsInRange().then();
+        }).then(fn => this.unListen_ = fn);
+        this.listenerActive = true;
+
+        dataSource.loadGetStatsInRange().then();
+    }
+
+    private startListenDaily(): void {
+        listen<null>("refresh-source", payload => {
+            this.loadGetStatsInRange().then();
+        }).then(fn => this.unListen_ = fn);
+        this.listenerActive = true;
+
+        this.loadGetStatsInRange().then();
+    }
+
+    private stopListenRange(): void {
+        if (this.unListen_ === null) {
+            return;
+        }
+
+        this.unListen_();
+        this.listenerActive = false;
+    }
+
+    private stopListenDaily(): void {
+        if (this.unListen_ === null) return;
+
+        this.unListen_();
+        this.listenerActive = false;
+    }
+
     synUniqueNames() {
+        //! Possibly unnecessary
         let result = false;
         this.uniqueNames().unwrapOr([]).then(
             r => {
@@ -203,17 +262,18 @@ class Provider extends Array {
     }
 
     public async altLoadSpecific(date: Date = new Date(), silent: boolean = false): Promise<void> {
+        //* The important function
         console.log("[altLoadSpecific]: called");
 
         if (!silent)
             this.loading = true;
 
         try {
-            const b = (await this.altFetchData(date))
+            /*const b = (await this.loadGetStatsInRange(date))
                 .actionRight(e => this.error_ = {from: "fetchData", message: String(e)})
                 .unwrapOr([]);
 
-            this.data2 = b;
+            this.data2 = b;*/
 
             /*if (JSON.stringify(b) !== JSON.stringify(this.data2))
                 this.data2 = b;*/
@@ -226,11 +286,25 @@ class Provider extends Array {
         }
     }
 
-    public async altFetchData(date: Date = new Date()): Promise<Box<AppStats[], unknown>> {
+    public async loadGetStatsInRange(date: Date = new Date()): Promise<Box<true, unknown>> {
+        this.loading = true;
+
         try {
-            const r = await getStatsInRange(date);
-            console.log("altFetchData", r);
-            return Box.ok(r);
+            this.data2 = await getStatsInRange(date);
+            console.log("altFetchData", this.data2);
+            return Box.ok(true);
+        } catch (e) {
+            return Box.error(e);
+        } finally {
+            this.loading = false;
+        }
+    }
+
+    public async loadGetDailyBreakdown(date: Date): Promise<Box<DailyAppStat[], unknown>> {
+        try {
+            return Box.ok(
+                await getDailyBreakdown(date, date)
+            )
         } catch (e) {
             return Box.error(e);
         }
@@ -268,6 +342,7 @@ class Provider extends Array {
             return Box.error(e);
         }
     }
+
 }
 
 export const dataSource = $state(new Provider());

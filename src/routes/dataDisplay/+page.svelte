@@ -4,8 +4,10 @@
     import {
         parsedDataCreator2,
         parsedDataCreatorSyn,
-        getStatsInRange
+        getStatsInRange,
     } from "$lib/services";
+
+    import {getDailyBreakdown} from "$lib/services/ipc";
 
     function triggerLoad() {
         dataSource.fetchData().then(r => {
@@ -16,6 +18,17 @@
 
     function fullClear(): void {
         console.clear();
+    }
+
+    let end = new Date();
+    let temp = new Date();
+    temp.setDate(temp.getDate() - 6);
+    let start = temp;
+
+    function wrap_getDailyBreakdown(s: Date, e: Date) {
+        console.log(s.toISOString(), e.toISOString());
+        console.log(getDailyBreakdown(s, e));
+
     }
 
 </script>
@@ -34,6 +47,9 @@
         </button>
         <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.data2))}>
             dataSource.data2
+        </button>
+        <button class="some-btn" onclick={() => wrap_getDailyBreakdown(start, end)}>
+            getDailyBreakdown
         </button>
         <div></div>
         <button class="some-btn" onclick={fullClear}>Clear</button>

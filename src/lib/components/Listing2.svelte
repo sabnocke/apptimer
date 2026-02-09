@@ -1,6 +1,6 @@
 <script lang="ts">
     import {dataSource, dateFormatter, resolver, selectedDate, selectiveSubscribe, timeFormatter} from "$lib/services";
-    import OneListing from "$lib/OneListing.svelte";
+    import OneListing from "$lib/components/OneListing.svelte";
     import {type AppStats, Duration} from "$lib/types";
 
     $effect(() => {
@@ -17,27 +17,24 @@
             .map(item => item.total_seconds)
             .reduce((acc, item) => acc + item, 0)
     );
-    // console.warn("total | exit | ", new Date());
 
-    // console.warn("sorted | start | ", new Date());
     const sorted: AppStats[] = $derived(
         dataSource.data2.toSorted((a, b) => {
             return b.total_seconds - a.total_seconds;
         })
     );
-    // console.warn("sorted | exit | ", new Date());
 
     function getPercentage(up: number): string {
         if (total === 0) return "0%";
         return (up / total * 100).toFixed(2) + "%";
     }
 
-    $effect(() => {
+    /*$effect(() => {
         console.log(dataSource.loading);
         console.log($state.snapshot(dataSource.data2));
         console.log($state.snapshot(sorted));
         console.log($state.snapshot(total));
-    })
+    })*/
 
 </script>
 
@@ -65,3 +62,10 @@
         <div>LOADING</div>
     {/if}
 </div>
+
+<style>
+    .display {
+        overflow-y: scroll;
+        max-height: 300px;
+    }
+</style>

@@ -107,6 +107,76 @@ pub async fn get_today_events_count() -> Result<i64, String> {
     Ok(result.0)
 }
 
+#[allow(unused)]
+pub async fn log_switch_refresh(process_name: &str, title: &str) -> Result<bool, String> {
+    let now = Utc::now();
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+
+    let record = sqlx::query_as!(
+        ProcessId,
+        r#"
+        INSERT INTO processes (name)
+        VALUES (?)
+        ON CONFLICT(name) DO UPDATE SET name = name
+        RETURNING id;
+        "#,
+        process_name
+    )
+    .fetch_one(pool)
+    .await
+    .map(|i| i.id)
+    .map_err(|e| e.to_string())?;
+
+    let unresolved_update = sqlx::query_as!(
+        LogEntry,
+        r#"
+        UPDATE events
+        SET end_time = ?
+        WHERE end_time IS NULL
+        RETURNING
+            id as "id!",
+            (SELECT name FROM processes WHERE processes.id = events.process_id) as "process_name!",
+            window_title as "window_title!",
+            start_time as "start_time: DateTime<Utc>",
+            temp_end_time as "temp_end_time: DateTime<Utc>",
+            end_time as "end_time: DateTime<Utc>"
+        "#,
+        now
+    )
+    .fetch_optional(pool)
+    .await
+    .inspect_err(|e| println!("[log_switch_refresh]: {}", e))
+    .ok()
+    .flatten();
+
+    if unresolved_update.is_none() {
+        return Ok(false);
+    }
+
+    let end_time: Option<DateTime<Utc>> = None;
+    let insert = sqlx::query!(
+        r#"
+        INSERT INTO events (process_id, window_title, start_time, temp_end_time, end_time)
+        VALUES (?, ?, ?, ?, ?);
+        "#,
+        record,
+        title,
+        now,
+        now,
+        end_time
+    )
+    .execute(pool)
+    .await
+    .map(|r| r.rows_affected())
+    .map_err(|e| e.to_string())?;
+
+    if insert == 1 {
+        return Ok(true);
+    }
+    // unreachable
+    Ok(false)
+}
+
 #[allow(dead_code)]
 pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, LogEntry), String> {
     let now = Utc::now();

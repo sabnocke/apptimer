@@ -9,7 +9,11 @@ export {
     getSteamGameName,
     loadAppDictionary,
     updateDisplayName,
-    getStatsInRange
+    getStatsInRange,
+    getDailyBreakdown,
+    findWindowTitles,
+    findPatternMatches,
+    addRecognitionRule
 } from "./ipc"
 export {
     parsedDataCreator2,
@@ -21,3 +25,6 @@ export {
 } from "./utils";
 
 export {selectedDate} from "./selectedDate.svelte";
+
+export {stringToColor, type DaySegment, type ChartDay, type DailyAppStat} from "./chartUtils"
+export {uiState, type ContextMenuData} from "./interactionState.svelte"

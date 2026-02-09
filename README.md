@@ -6,9 +6,9 @@ TypeScript in Vite.
 ## Recommended IDE Setup (for VSCode)
 
 [VS Code](https://code.visualstudio.com/) + 
-[Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode)+ 
-[Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)+ 
-[rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+[Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) + 
+[Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + 
+[rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
 ## Running it
 
@@ -36,14 +36,15 @@ TypeScript in Vite.
 
 - [x] Remove Gantt timeline
 - [x] Remove longestTasks and related code from Provider or elsewhere
-- [ ] Figure out a different way of visualizing the data
-- [ ] Add [stacked bar chart](https://www.chartjs.org/docs/latest/samples/bar/stacked.html)
+- [x] Figure out a different way of visualizing the data
+- [x] Add [stacked bar chart](https://www.chartjs.org/docs/latest/samples/bar/stacked.html)
 - [ ] Overhaul UI/UX to a more unified vision
 
 ## Name resolving
 
 - [ ] Add steam name resolver
-- [ ] Figure out name resolving of PWA
+  - [ ] There is something, but does it work?
+- [x] Figure out name resolving of PWA
   - Seems to be issue on Vivaldi and any PWA
   - `Vivaldi-bobcidbgoopfnikbbgihiiihapdmbplc-Def` >> `Notion`
   - Or since it still uses Vivaldi group them together (the simpler solution)

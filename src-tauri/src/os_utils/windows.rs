@@ -5,8 +5,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use super::{LAST_NAME, LAST_TITLE};
-use crate::db::{log_switch, DB_CONN};
+use crate::db::{log_switch, DB_CONN, log_switch_refresh};
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
+
 static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| {
     let settings = RefreshKind::default().with_processes(ProcessRefreshKind::default());
 
@@ -69,14 +70,6 @@ pub fn get_active_window() -> WindowInfo {
     }
 }
 
-// fn format_name<'a>(window_name: &'a str, process_name: &'a str) -> &'a str {
-//     if process_name.eq("ApplicationFrameHost.exe") {
-//         return window_name;
-//     }
-//
-//     process_name
-// }
-
 pub async fn get_process_info(handle: &AppHandle) {
     let last_name = LAST_NAME.load();
     let last_title = LAST_TITLE.load();
@@ -87,14 +80,8 @@ pub async fn get_process_info(handle: &AppHandle) {
         return;
     }
 
-    // let process = sys.processes().get(&Pid::from_u32(un_wi.pid));
-
     if wi.process_name != **last_name || wi.window_title != **last_title {
         println!("Switch! {} -> {}", last_name, wi.process_name);
-        // if let Err(e) = log_switch(&wi.process_name, &wi.window_title).await {
-        //     eprintln!("DB Error: {}", e);
-        //     ()
-        // }
 
         match log_switch(&wi.process_name, &wi.window_title).await {
             Ok(entries) => {
@@ -111,5 +98,30 @@ pub async fn get_process_info(handle: &AppHandle) {
 
         LAST_TITLE.store(Arc::new(wi.window_title.clone()));
         LAST_NAME.store(Arc::new(wi.process_name.clone()));
+    }
+}
+
+pub async fn get_process_info_(handle: &AppHandle) {
+    let last_name = LAST_NAME.load();
+    let last_title = LAST_TITLE.load();
+
+    let wi = get_active_window();
+
+    if wi.pid == 0 || wi.is_empty() {
+        return;
+    }
+
+    if wi.process_name != **last_name || wi.window_title != **last_title {
+        println!("Switch! {} -> {}", last_name, wi.process_name);
+
+        match log_switch_refresh(&wi.process_name, &wi.window_title).await {
+            Ok(b) => {
+                handle.emit("refresh-source", ());
+            },
+            Err(e) => println!("DB Error: {}", e)
+        }
+
+        LAST_TITLE.store(Arc::new(wi.window_title));
+        LAST_NAME.store(Arc::new(wi.process_name));
     }
 }

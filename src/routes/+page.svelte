@@ -1,15 +1,15 @@
 <script lang="ts">
     import {dataSource} from "$lib/services/dataProvider.svelte";
     import {Duration} from "$lib/types";
-    import RadioButtons from "$lib/RadioButtons.svelte";
-    import Listing from "$lib/Listing.svelte";
+    import RadioButtons from "$lib/components/RadioButtons.svelte";
+    import Listing from "$lib/components/Listing.svelte";
     import {goto} from "$app/navigation";
-    import SwitchButton from "$lib/SwitchButton.svelte";
+    import SwitchButton from "$lib/components/SwitchButton.svelte";
     import {checkAccess, setLogging} from "$lib/services";
     import {onMount} from "svelte";
-    import {Temporal} from "@js-temporal/polyfill";
     import {selectiveSubscribe, selectedDate, timeFormatter, dateFormatter} from "$lib/services";
-    import Listing2 from "$lib/Listing2.svelte";
+    import Listing2 from "$lib/components/Listing2.svelte";
+    import StackedBar from "$lib/components/StackedBar.svelte";
 
 
     const ALLOW_DEBUG_PRINT: boolean = true;
@@ -21,17 +21,25 @@
             return console.log(...src);
     }
 
-    $effect(() => selectiveSubscribe(selectedDate.value) /*{
-        const print = true
-        const isToday: boolean = selectedDate.value.toDateString() === new Date().toDateString();
-        if (isToday) {
-            if (print) console.log("📅 Viewing Today: Starting Real-time Listener...");
-            return dataSource.subscribe(false);
-        } else {
-            if (print) console.log("📅 Viewing Past: Real-time updates disabled.");
-            return () => null;
-        }
-    }*/);
+
+    let before = $state(new Date());
+    let today = $derived.by(() => {
+        const temp = new Date();
+        temp.setDate(temp.getDate() - 6);
+        return temp
+    });
+
+    // $effect(() => selectiveSubscribe(selectedDate.value) /*{
+    //     const print = true
+    //     const isToday: boolean = selectedDate.value.toDateString() === new Date().toDateString();
+    //     if (isToday) {
+    //         if (print) console.log("📅 Viewing Today: Starting Real-time Listener...");
+    //         return dataSource.subscribe(false);
+    //     } else {
+    //         if (print) console.log("📅 Viewing Past: Real-time updates disabled.");
+    //         return () => null;
+    //     }
+    // }*/);
 
     /*$effect(() => {
         console.log("Listeners: ", dataSource.listeners);
@@ -44,21 +52,19 @@
     let allowLogging: boolean = $state(true);
     let isBusy: boolean = $state(false);
 
-    const today = new Date();
-
     /*$effect(() => {
         console.log(`allowLogging: ${allowLogging}`);
     });*/ //TODO can be removed
 
-    onMount(async () => {
-        try {
-            console.log("Finding initial state...");
-            allowLogging = await checkAccess();
-            console.log("Initial state is: ", allowLogging);
-        } catch (e) {
-            console.error(e);
-        }
-    });
+    // onMount(async () => {
+    //     try {
+    //         console.log("Finding initial state...");
+    //         allowLogging = await checkAccess();
+    //         console.log("Initial state is: ", allowLogging);
+    //     } catch (e) {
+    //         console.error(e);
+    //     }
+    // });
 
     async function testPause(): Promise<void> {
         if (isBusy) return;
@@ -151,7 +157,7 @@
     <div class="controls grid-container">
         <div class="grid-item-1">
             <div class="sub-flex-1">
-                {#if true}
+                <!--{#if true}
                     {@const [first, second, third] = getFormattedTimeRange()}
                     <div class="flex-item">{first}</div>
                     {#if second && third}
@@ -159,13 +165,14 @@
                         <div class="flex-item">-</div>
                         <div class="flex-item">{third}</div>
                     {/if}
-                    <!--                <div id="flex-item-1">{formatter.format(dataSource.timeRange.start)}</div>-->
-                    <!--                <div id="flex-item-2">-</div>-->
-                    <!--                <div id="flex-item-3">{formatter.format(dataSource.timeRange.end)}</div>-->
-                {/if}
+                    &lt;!&ndash;                <div id="flex-item-1">{formatter.format(dataSource.timeRange.start)}</div>&ndash;&gt;
+                    &lt;!&ndash;                <div id="flex-item-2">-</div>&ndash;&gt;
+                    &lt;!&ndash;                <div id="flex-item-3">{formatter.format(dataSource.timeRange.end)}</div>&ndash;&gt;
+                {/if}-->
             </div>
             <div id="flex-item-4">Total time: {total.format()}</div>
             <button onclick={() => goto("/dataDisplay")}>Data Display</button>
+            <button onclick={() => goto("/editorDisplay")}>Editor</button>
         </div>
         <div class="grid-item-2">
             <RadioButtons/>
@@ -183,6 +190,7 @@
     <div class="display">
 <!--        <Listing/>-->
         <Listing2 />
+        <StackedBar start={today} end={before} />
     </div>
 </main>
 

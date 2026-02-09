@@ -14,10 +14,16 @@ use crate::commands::{
     fetch_load_steam_game_data,
     load_app_dictionary,
     get_stats_in_range,
-    add_recognition_rule
+    add_recognition_rule,
+    get_daily_breakdown,
+    find_window_titles,
+    find_pattern_matches
 };
 use crate::db::{init_db};
-use os_utils::get_process_info;
+use os_utils::{
+    get_process_info,
+    get_process_info_
+};
 use tokio::time::{sleep, Duration};
 use tauri::{
     menu::{Menu, MenuItem, MenuEvent},
@@ -76,9 +82,10 @@ fn main() {
                 init_db().await;
 
                 loop {
-                    println!("- current allowLogging value: {}", check_access());
+                    // println!("- current allowLogging value: {}", check_access());
                     if check_access() {
-                        get_process_info(&handle).await;
+                        // get_process_info(&handle).await;
+                        get_process_info_(&handle).await;
                     }
                     sleep(Duration::from_secs(1)).await;
                 }
@@ -97,6 +104,9 @@ fn main() {
             load_app_dictionary,
             get_stats_in_range,
             add_recognition_rule,
+            get_daily_breakdown,
+            find_window_titles,
+            find_pattern_matches
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
