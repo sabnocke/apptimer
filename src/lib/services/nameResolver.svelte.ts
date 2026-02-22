@@ -1,9 +1,8 @@
-import {BaseDirectory, exists, mkdir, readTextFile, writeTextFile} from "@tauri-apps/plugin-fs";
-import {Box, SuperMap} from "$lib/types";
-import type {LogEntry} from "$lib/services/dataProvider.svelte";
+import {Box, SuperMap, type AppDictionary, isSystemNoise, ModSet} from "$lib/types";
 import {getSteamGameName, loadAppDictionary, updateDisplayName} from "$lib/services/ipc";
-import type {AppDictionary} from "$lib/types";
-import {isSystemNoise} from "$lib/types";
+import {type DailyAppStat, findWindowTitles} from "$lib/services";
+
+//TODO maybe rely more on manual pattern matching
 
 class NameResolver {
     private _locationExists: boolean = false;
@@ -77,43 +76,63 @@ class NameResolver {
         return word.charAt(0).toUpperCase() + word.slice(1);
     }
 
-    resolveComplex(item: LogEntry<Date>): string {
-        if (!item.process_name && !item.window_title) {
+    private getWindowTitles(process_key: string): Box<string[], unknown> {
+        const b = findWindowTitles(process_key);
+        if (b.isOk) {
+            let res: string[] = [];
+            b.unwrapOk().then(v => res = v);
+            return Box.ok(res);
+        } else {
+            return Box.error(b.unwrapElse());
+        }
+    }
+
+    resolveComplex(item: DailyAppStat): string {
+        if (!item.process_key) {
             return "UNKNOWN"
         }
 
-        if (isSystemNoise(item.process_name)) {
+        if (isSystemNoise(item.process_key)) {
             return "Idle/System";
         }
 
+        const b = this.getWindowTitles(item.process_key);
+
+        if (b.isInElse) {
+            console.error(b.unwrapElse());
+            return "Failed to resolve!";
+        }
+
+        const window_titles = new ModSet(b.unwrapOk());
+
         // PWA check regex
-        if (/^[a-z]+-[a-z]{32}-.+$/.test(item.process_name)) {
+        if (/^[a-z]+-[a-z]{32}-.+$/.test(item.process_key)) {
             console.log("[DETECTED PWA pattern]");
             // window title can be: <program name> - <something>, I should remove both the colon and something
-            const maybeName = item.window_title.split("-"); //? there can be more than two
+            const maybeName = window_titles.map(val => val.split('-')[0]).first ?? "Failed to resolve"
             console.log("[SPLIT]:", maybeName);
             const someName = maybeName[0].replace(/\s/, "");
             console.log("[REPLACE]:", someName);
             return this.capitalize(someName);
         }
 
-        if (/steam_app_\d+/.test(item.process_name)) {
-            const val = this.resolveSteamGameName(item.process_name);
+        if (/steam_app_\d+/.test(item.process_key)) {
+            const val = this.resolveSteamGameName(item.process_key);
             //? Maybe the window title has some useful information
-            console.log(`For ${item.process_name} exists window title: ${item.window_title}`);
+            console.log(`For ${item.process_key} exists window title: ${window_titles.first}`);
             if (val.isOk) return val.unwrapOk();
         }
 
         const vb = this.mapping
-            .fetch(item.process_name)
+            .fetch(item.process_key)
             .mapLeft(b => b.displayName)
             .unwrapOr("");
         if (vb !== "") return vb;
 
-        let newName: string = item.process_name;
+        let newName: string = item.process_key;
         for (const rule of this.cleanupRules) {
             if(!rule.pattern.test(newName)) continue;
-            newName = item.process_name.replace(rule.pattern, rule.replace);
+            newName = item.process_key.replace(rule.pattern, rule.replace);
         }
 
         return this.capitalize((newName));

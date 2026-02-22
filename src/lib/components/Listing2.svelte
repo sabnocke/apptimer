@@ -1,12 +1,12 @@
 <script lang="ts">
     import {dataSource, dateFormatter, resolver, selectedDate, selectiveSubscribe, timeFormatter} from "$lib/services";
     import OneListing from "$lib/components/OneListing.svelte";
-    import {type AppStats, Duration} from "$lib/types";
+    import {type AppStats, SimpleDuration} from "$lib/types";
 
     $effect(() => {
-        dataSource.altLoadSpecific(new Date(), false).then()
+        dataSource.loadGetDailyBreakdown(new Date()).then()
         const interval = setInterval(() => {
-                dataSource.altLoadSpecific(new Date(), true).then()
+                dataSource.loadGetDailyBreakdown(new Date()).then()
         }, 5000);
 
         return () => clearInterval(interval);
@@ -49,7 +49,7 @@
         <div>Nothing to display for {dateFormatter.format(selectedDate.value)}</div>
     {:else if sorted.length > 0}
         {#each sorted as {final_name, process_key, total_seconds} (process_key)}
-            {@const timed = Duration.format_seconds(total_seconds)}
+            {@const timed = SimpleDuration.format_seconds(total_seconds)}
 
             <OneListing
                 name={resolver.resolve(final_name)}
@@ -57,7 +57,7 @@
                 percentage={getPercentage(total_seconds)}
             />
         {/each}
-        <div>{Duration.format_seconds(total)}</div>
+        <div>{SimpleDuration.format_seconds(total)}</div>
     {:else}
         <div>LOADING</div>
     {/if}

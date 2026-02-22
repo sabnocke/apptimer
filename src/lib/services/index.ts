@@ -17,11 +17,11 @@ export {
 } from "./ipc"
 export {
     parsedDataCreator2,
-    parsedDataCreatorSyn,
     selectiveSubscribe,
     timeFormatter,
     formatter,
-    dateFormatter
+    dateFormatter,
+    zip
 } from "./utils";
 
 export {selectedDate} from "./selectedDate.svelte";

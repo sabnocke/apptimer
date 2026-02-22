@@ -2,7 +2,7 @@ import {Temporal} from "@js-temporal/polyfill";
 import {Box} from "$lib/types/box";
 import Instant = Temporal.Instant;
 
-export class Duration {
+export class SimpleDuration {
   public days: number = 0;
   public hours: number = 0;
   public minutes: number = 0;
@@ -11,10 +11,10 @@ export class Duration {
   start?: Temporal.Instant;
   end?: Temporal.Instant;
 
-  private constructor(start: Instant, end: Instant);
-  private constructor(start: number, end: number);
-  private constructor();
-  private constructor(start?: number | Instant, end?: number | Instant) {
+  constructor(start: Instant, end: Instant);
+  constructor(start: number, end: number);
+  constructor();
+  constructor(start?: number | Instant, end?: number | Instant) {
     if (start === undefined && end === undefined) {
       return;
     } else if (typeof start === "number" && typeof end === "number") {
@@ -22,37 +22,30 @@ export class Duration {
       this.end = Instant.fromEpochMilliseconds(end);
       this.secondsToFull((end - start) / 1000);
     } else {
-      this.start = start;
+      this.start = start as Instant;
+      this.end = end as Instant;
+      const seconds = this.start
+          .until(this.end)
+          .total("second");
+      this.secondsToFull(seconds);
     }
-
   }
 
-  static fromValueOf(start: number, end: number) {
-    return new Duration(start, end);
+  static fromSeconds(seconds: number) {
+    return (new SimpleDuration()).secondsToFull(seconds);
   }
 
-  static from_seconds(seconds: number) {
-    return (new Duration()).secondsToFull(seconds);
-  }
+  static offsetFromDate(offset: number, date: Date = new Date()): SimpleDuration {
+    const endMs = date.getTime();
 
-  static offsetFromDate(offset: number, date: Date = new Date()): Duration {
-    const date2 = structuredClone(date);
+    const midnight = new Date(date);
+    midnight.setHours(0, 0, 0, 0);
+    const midnightMs = midnight.getTime();
 
-    date2.setHours(0, 0, 0, 0);
-    const dateMidnight = Instant.fromEpochMilliseconds(date2.getTime());
-    const ms = offset * 1000;
-    const dateStart = Instant.fromEpochMilliseconds(date.getTime()).subtract({seconds: offset});
+    const offsetStartMs = endMs - (offset * 1000);
+    const startMs = Math.max(midnightMs, offsetStartMs);
 
-    if (dateMidnight.valueOf() < dateStart.valueOf()) {
-      // use dateStart
-      return new Duration(dateStart.valueOf())
-    } else if (dateStart.valueOf() < dateMidnight.valueOf()) {
-      // use dateMidnight
-    } else {
-      // doesn't matter they are equal
-    }
-
-
+    return new SimpleDuration(startMs, endMs);
   }
 
 
@@ -71,7 +64,7 @@ export class Duration {
     return this;
   }
 
-  public add(other: Duration) {
+  public add(other: SimpleDuration) {
     this.days += other.days;
     this.hours += other.hours;
     this.minutes += other.minutes;
@@ -105,9 +98,9 @@ export class Duration {
   }
 
   public format() {
-    const seconds = Duration.stringify(this.seconds);
-    const minutes = Duration.stringify(this.minutes);
-    const hours = Duration.stringify(this.hours);
+    const seconds = SimpleDuration.stringify(this.seconds);
+    const minutes = SimpleDuration.stringify(this.minutes);
+    const hours = SimpleDuration.stringify(this.hours);
 
     return (this.days > 0 ? `${this.days}:` : "") +
         `${hours}:${minutes}:${seconds}`;
@@ -125,8 +118,8 @@ export class Duration {
     const seconds = total_seconds % 60;
 
     return (days > 0 ? days + ":" : "") +
-        Duration.stringify(hours) + ":" +
-        Duration.stringify(minutes) + ":" +
-        Duration.stringify(seconds)
+        SimpleDuration.stringify(hours) + ":" +
+        SimpleDuration.stringify(minutes) + ":" +
+        SimpleDuration.stringify(seconds)
   }
 }

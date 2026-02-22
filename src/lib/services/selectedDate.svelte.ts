@@ -19,13 +19,17 @@ class SelectedDateSvelte {
         copy.setHours(0, 0, 0, 0);
 
         this.value = copy;
-        dataSource.loadSpecific(copy);
+        dataSource
+            .load(copy)
+            .then(v => console.log("Load success: ", v));
         return this;
     }
 
     setToday(): this {
         this.value = SelectedDateSvelte.getTodayMidnight();
-        dataSource.loadSpecific(this.value);
+        dataSource
+            .load(this.value)
+            .then(v => console.log("Load success: ", v));
         return this;
     }
 

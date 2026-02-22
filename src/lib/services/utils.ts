@@ -1,18 +1,9 @@
-import {AsyncBox, type GanttTask, Duration} from "$lib/types";
 import {dataSource} from "$lib/services/dataProvider.svelte";
-
-interface DisplayData {
-    id: number;
-    name: string;
-    start: Date;
-    end: Date;
-    time: Duration
-}
 
 export function parsedDataCreator2() {
     return dataSource
         .uniqueNames()
-        .mapLeft(all => {
+        /*.mapLeft(all => {
             return all.map<DisplayData>((name, id) => {
                 const f = dataSource.data.filter(d => d.process_name === name);
                 const m = f.map(d => new Duration(d.start_time, d.end_time ?? d.temp_end_time));
@@ -37,35 +28,15 @@ export function parsedDataCreator2() {
                     time: sum.resync()
                 }
             });
-        })
-}
-export function parsedDataCreatorSyn() {
-    if (dataSource.getUniqueNames.length === 0) {
-        return [];
-    }
-
-    return dataSource.getUniqueNames.map<DisplayData>((name, id) => {
-        const f = dataSource.data.filter(d => d.process_name === name);
-        const m = f.map(one => new Duration(one.start_time, (one.end_time ?? one.temp_end_time)));
-
-        const begin = Math.min(...f.map(one => one.start_time.valueOf()));
-        const end = Math.max(...f.map(one => (one.end_time ?? one.temp_end_time).valueOf()));
-        const time = m.reduce((acc, item) => acc.add(item), new Duration()).resync();
-
-        return {
-            id, name, time,
-            start: new Date(begin),
-            end: new Date(end)
-        }
-    });
+        })*/
 }
 
-export function selectiveSubscribe(date: Date, print: boolean = true, usePolling: boolean = false): (() => void) {
+export function selectiveSubscribe(date: Date, print: boolean = true): (() => void) {
     console.log("selectiveSubscribe's date: ", date);
     const isToday: boolean = date.toDateString() === new Date().toDateString();
     if (isToday) {
         if (print) console.log("📅 Viewing Today: Starting Real-time Listener...");
-        return dataSource.subscribe(usePolling);
+        return dataSource.subscribe();
     } else {
         if (print) console.log("📅 Viewing Past: Real-time updates disabled.");
         return () => null;
@@ -93,4 +64,23 @@ export const timeFormatter = Intl.DateTimeFormat("cs-CZ", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false
-})
+});
+
+export function* zip<A, B>(one: ArrayLike<A>, two: ArrayLike<B> | B): Generator<[A, B], void, unknown> {
+
+    const isCollection: boolean =
+        two != null &&
+        typeof (two as any).length === "number" &&
+        typeof two !== "function";
+
+    const len = isCollection ? (two as ArrayLike<B>).length : Infinity;
+    const limit = Math.min(one.length, len);
+
+    for (let i = 0; i < limit; i++) {
+        if (isCollection) {
+            yield [one[i], (two as ArrayLike<B>)[i]];
+        } else {
+            yield [one[i], two as B];
+        }
+    }
+}

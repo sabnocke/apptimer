@@ -2,19 +2,10 @@
     import {goto} from "$app/navigation";
     import {dataSource} from "$lib/services";
     import {
-        parsedDataCreator2,
-        parsedDataCreatorSyn,
         getStatsInRange,
     } from "$lib/services";
 
     import {getDailyBreakdown} from "$lib/services/ipc";
-
-    function triggerLoad() {
-        dataSource.fetchData().then(r => {
-            console.clear();
-            r.action(console.log, console.error)
-        });
-    }
 
     function fullClear(): void {
         console.clear();
@@ -35,18 +26,12 @@
 
 <div class="container">
     <div class="sidebar-base">
-        <button class="some-btn" onclick={() => console.log(dataSource.uniqueNames())}>Unique names</button>
+        <button class="some-btn" onclick={() => console.log(dataSource.uniqueNames())}>Fully resolved names</button>
         <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.getUniqueNames))}>Get unique names</button>
-        <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.data))}>Entry data</button>
-        <button class="some-btn" onclick={triggerLoad}>Trigger load</button>
+        <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.data_))}>Entry data</button>
         <button class="some-btn" onclick={() => console.log(dataSource)}>Show error</button>
-        <button class="some-btn" onclick={() => console.log(parsedDataCreator2())}>Show parsed data 2</button>
-        <button class="some-btn" onclick={() => console.log(parsedDataCreatorSyn())}>parsedDataCreatorSyn</button>
         <button class="some-btn" onclick={() => console.log(getStatsInRange("2026-01-23", "2026-01-30"))}>
             Test getStatsInRange for 23-01-2026 -- 30-01-2026
-        </button>
-        <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.data2))}>
-            dataSource.data2
         </button>
         <button class="some-btn" onclick={() => wrap_getDailyBreakdown(start, end)}>
             getDailyBreakdown

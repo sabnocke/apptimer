@@ -1,11 +1,11 @@
 <script lang="ts">
     import {dataSource} from "$lib/services/dataProvider.svelte";
-    import {Duration} from "$lib/types";
+    import {SimpleDuration} from "$lib/types";
     import RadioButtons from "$lib/components/RadioButtons.svelte";
     import Listing from "$lib/components/Listing.svelte";
     import {goto} from "$app/navigation";
     import SwitchButton from "$lib/components/SwitchButton.svelte";
-    import {checkAccess, setLogging} from "$lib/services";
+    import {checkAccess, formatter, setLogging} from "$lib/services";
     import {onMount} from "svelte";
     import {selectiveSubscribe, selectedDate, timeFormatter, dateFormatter} from "$lib/services";
     import Listing2 from "$lib/components/Listing2.svelte";
@@ -14,14 +14,6 @@
 
     const ALLOW_DEBUG_PRINT: boolean = true;
 
-    /*let isToday: boolean = $derived(selectedDate.getDate() === new Date().getDate());*/
-
-    function dPrint(...src: any[]): void {
-        if (ALLOW_DEBUG_PRINT)
-            return console.log(...src);
-    }
-
-
     let before = $state(new Date());
     let today = $derived.by(() => {
         const temp = new Date();
@@ -29,7 +21,7 @@
         return temp
     });
 
-    // $effect(() => selectiveSubscribe(selectedDate.value) /*{
+    $effect(() => selectiveSubscribe(selectedDate.value) /*{
     //     const print = true
     //     const isToday: boolean = selectedDate.value.toDateString() === new Date().toDateString();
     //     if (isToday) {
@@ -41,30 +33,12 @@
     //     }
     // }*/);
 
-    /*$effect(() => {
-        console.log("Listeners: ", dataSource.listeners);
-    })*/
-
     const total = $derived.by(() => {
-        return Duration.from_seconds(dataSource.timeRange.totalSeconds)
+        return SimpleDuration.fromSeconds(dataSource.timeRange.totalSeconds)
     });
 
     let allowLogging: boolean = $state(true);
     let isBusy: boolean = $state(false);
-
-    /*$effect(() => {
-        console.log(`allowLogging: ${allowLogging}`);
-    });*/ //TODO can be removed
-
-    // onMount(async () => {
-    //     try {
-    //         console.log("Finding initial state...");
-    //         allowLogging = await checkAccess();
-    //         console.log("Initial state is: ", allowLogging);
-    //     } catch (e) {
-    //         console.error(e);
-    //     }
-    // });
 
     async function testPause(): Promise<void> {
         if (isBusy) return;
@@ -112,27 +86,8 @@
         console.log((new Date()).toISOString(), "End");
     }
 
-    /*function changeDay(offset: number): void {
-        const copy = new Date(selectedDate);
-
-        copy.setDate(copy.getDate() + offset);
-        copy.setHours(0, 0, 0, 0);
-
-        selectedDate = copy;
-        dataSource.loadSpecific(selectedDate);
-    }
-
-    function addDay(): void {
-        changeDay(+1);
-    }
-
-    function removeDay(): void {
-        changeDay(-1)
-    }*/
-
     function getFormattedTimeRange(): [string, string, string] {
-        // console.log("dataSource.data: ", $state.snapshot(dataSource.data));
-        if (dataSource.data.length !== 0) {
+        if (!dataSource.isEmpty) {
             const first = dateFormatter.format(dataSource.timeRange.start);
             //TODO what to do when start's date != end's date
             const second = timeFormatter.format(dataSource.timeRange.start);
@@ -141,23 +96,16 @@
             return [first, second, third];
         } else {
             const first = dateFormatter.format(selectedDate.value);
-            // console.log("else first: ", first);
             return [first, "", ""];
         }
     }
-
-    /*$effect(() => {
-        dPrint(getFormattedTimeRange());
-    })*/
-
-
 </script>
 
 <main class="container">
     <div class="controls grid-container">
         <div class="grid-item-1">
             <div class="sub-flex-1">
-                <!--{#if true}
+                {#if true}
                     {@const [first, second, third] = getFormattedTimeRange()}
                     <div class="flex-item">{first}</div>
                     {#if second && third}
@@ -165,10 +113,10 @@
                         <div class="flex-item">-</div>
                         <div class="flex-item">{third}</div>
                     {/if}
-                    &lt;!&ndash;                <div id="flex-item-1">{formatter.format(dataSource.timeRange.start)}</div>&ndash;&gt;
-                    &lt;!&ndash;                <div id="flex-item-2">-</div>&ndash;&gt;
-                    &lt;!&ndash;                <div id="flex-item-3">{formatter.format(dataSource.timeRange.end)}</div>&ndash;&gt;
-                {/if}-->
+                    <div id="flex-item-1">{formatter.format(dataSource.timeRange.start)}</div>
+                    <div id="flex-item-2">-</div>
+                    <div id="flex-item-3">{formatter.format(dataSource.timeRange.end)}</div>
+                {/if}
             </div>
             <div id="flex-item-4">Total time: {total.format()}</div>
             <button onclick={() => goto("/dataDisplay")}>Data Display</button>

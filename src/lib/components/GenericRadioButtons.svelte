@@ -1,4 +1,6 @@
 <script lang="ts">
+    import {zip} from "$lib/services";
+
     type Changeable = (() => void) | Array<() => void> | Array<[string, () => void]>
 
     let {
@@ -12,25 +14,6 @@
         selected: string
         onchange?: Changeable | null
     } = $props();
-
-    function* zip<A, B>(one: ArrayLike<A>, two: ArrayLike<B> | B): Generator<[A, B], void, unknown> {
-
-        const isCollection: boolean =
-            two != null &&
-            typeof (two as any).length === "number" &&
-            typeof two !== "function";
-
-        const len = isCollection ? (two as ArrayLike<B>).length : Infinity;
-        const limit = Math.min(one.length, len);
-
-        for (let i = 0; i < limit; i++) {
-            if (isCollection) {
-                yield [one[i], (two as ArrayLike<B>)[i]];
-            } else {
-                yield [one[i], two as B];
-            }
-        }
-    }
 
     const displayData: [string, undefined | (() => void)][] = $derived.by(() => {
         if (Array.isArray(onchange) && Array.isArray(onchange[0])) {

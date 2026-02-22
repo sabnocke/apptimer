@@ -1,7 +1,7 @@
 <script lang="ts">
     import {dataSource} from "$lib/services";
     import OneListing from "$lib/components/OneListing.svelte";
-    import {Duration, Box} from "$lib/types";
+    import {SimpleDuration, Box} from "$lib/types";
     import type {LogEntry} from "$lib/services/dataProvider.svelte.js";
     import {resolver} from "$lib/services";
     import {selectiveSubscribe, selectedDate, dateFormatter} from "$lib/services";
@@ -13,7 +13,7 @@
         name: string;
         start: Date;
         end: Date;
-        time: Duration;
+        time: SimpleDuration;
     }
 
     interface Record {
@@ -53,7 +53,7 @@
 
             const resolvedName = distinctNames.values().next().value ?? name;
 
-            const m = f.map(one => new Duration(one.start_time, (one.end_time ?? one.temp_end_time)));
+            const m = f.map(one => new SimpleDuration(one.start_time, (one.end_time ?? one.temp_end_time)));
 
             const {min, max} = f.reduce((acc, curr) => {
                 const start = curr.start_time.valueOf();
@@ -64,7 +64,7 @@
                 }
             }, {min: Infinity, max: -Infinity});
 
-            const time = m.reduce((acc, item) => acc.add(item), new Duration()).resync();
+            const time = m.reduce((acc, item) => acc.add(item), new SimpleDuration()).resync();
 
             const d: DisplayData = {
                 id,
@@ -91,8 +91,8 @@
         return values;
     })
 
-    const total: Duration = $derived(
-        Duration.from_seconds(
+    const total: SimpleDuration = $derived(
+        SimpleDuration.fromSeconds(
             parsedData_
                 .filter(value => value !== null)
                 .map(one => one.time.collapseToSeconds())
@@ -108,7 +108,7 @@
         })
     })
 
-    function getPercentage(up: Duration, down: Duration): string {
+    function getPercentage(up: SimpleDuration, down: SimpleDuration): string {
         const ups = up.collapseToSeconds();
         const downs = down.collapseToSeconds();
         if (downs === 0) return "0%";
