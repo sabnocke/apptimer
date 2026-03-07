@@ -13,12 +13,6 @@ export interface LogEntry<T> {
     end_time: T | null
 }
 
-interface IRow {
-    id: number,
-    name: string,
-    displayName: string,
-}
-
 interface ErrorRecord {
     from?: string
     message?: string
@@ -36,7 +30,7 @@ class Provider extends Array {
     private error_: ErrorRecord = $state<ErrorRecord>({});
 
     listeners: number = 0;
-    private unListen_: null | (() => void) = null;
+    private unListen_: (() => void) = () => {};
     listenerActive = false;
 
     get data_() {
@@ -68,7 +62,7 @@ class Provider extends Array {
 
 
     get getUniqueNames(): string[] {
-        //! UNUSED in Listing2
+        //! UNUSED in Listing
         //! Possibly unnecessary
         return this.uniqueNames_;
     }
@@ -110,16 +104,24 @@ class Provider extends Array {
 
     constructor() {
         super();
-        // this.load();
+    }
+
+    public pause() {
+        if (this.listenerActive) {
+            this.unListen_();
+            this.listenerActive = false;
+        } else {
+            this.startListenDaily();
+        }
     }
 
     private startListenDaily(): void {
         listen<null>("refresh-source", () => {
-            this.load().then();
+            this.load(new Date()).then();
         }).then(fn => this.unListen_ = fn);
         this.listenerActive = true;
 
-        this.load().then();
+        this.load(new Date()).then();
     }
 
     private stopListenDaily(): void {
@@ -146,7 +148,7 @@ class Provider extends Array {
         }));
     }
 
-    public async load(date: Date = new Date()): Promise<boolean> {
+    public async load(date: Date): Promise<boolean> {
         return await this.loadGetDailyBreakdown(date);
     }
 
@@ -155,7 +157,7 @@ class Provider extends Array {
 
         try {
             this.data3 = await getDailyBreakdown(date, date);
-            console.log("loadGetDailyBreakdown", this.data3);
+            // console.log("loadGetDailyBreakdown", this.data3);
             return true;
         } catch (e) {
             console.error(e);

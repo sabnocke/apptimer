@@ -19,10 +19,21 @@ class SelectedDateSvelte {
         copy.setHours(0, 0, 0, 0);
 
         this.value = copy;
+        console.log(`called load with ${copy}`); //TODO console.log
+        dataSource.pause();
         dataSource
             .load(copy)
             .then(v => console.log("Load success: ", v));
+
         return this;
+    }
+
+    public giveSubscribe(): () => void {
+        return this.isToday ? dataSource.subscribe() : () => {};
+    }
+
+    private setListeningForPast() {
+        dataSource.loadedPast = this.value.getTime() !== SelectedDateSvelte.getTodayMidnight().getTime();
     }
 
     setToday(): this {

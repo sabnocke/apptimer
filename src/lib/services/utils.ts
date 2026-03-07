@@ -3,32 +3,6 @@ import {dataSource} from "$lib/services/dataProvider.svelte";
 export function parsedDataCreator2() {
     return dataSource
         .uniqueNames()
-        /*.mapLeft(all => {
-            return all.map<DisplayData>((name, id) => {
-                const f = dataSource.data.filter(d => d.process_name === name);
-                const m = f.map(d => new Duration(d.start_time, d.end_time ?? d.temp_end_time));
-
-                const m2 = f.map<[Date, Date | null, Date]>(d => [d.start_time, d.end_time, d.temp_end_time]);
-                const begin = Math.min(...f.map(d => d.start_time.valueOf()));
-                const end = Math.min(...f.map(d => (d.end_time ?? d.temp_end_time).valueOf()));
-                const sum = m.reduce((acc, item) => acc.add(item), new Duration());
-
-                if (name === "jetbrains-rustrover") {
-                    console.log(m2);
-                    console.log(m2.map(([a, b, c]) => (b ?? c).valueOf() - a.valueOf()));
-                    console.log(m2.map(([a, b, c]) => new Duration(a, b ?? c)));
-                }
-
-
-                return {
-                    id,
-                    name,
-                    start: new Date(begin),
-                    end: new Date(end),
-                    time: sum.resync()
-                }
-            });
-        })*/
 }
 
 export function selectiveSubscribe(date: Date, print: boolean = true): (() => void) {

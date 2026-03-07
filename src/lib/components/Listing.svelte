@@ -1,5 +1,5 @@
 <script lang="ts">
-    import {dataSource, dateFormatter, resolver, selectedDate, selectiveSubscribe, timeFormatter} from "$lib/services";
+    import {dataSource, dateFormatter, resolver, selectedDate} from "$lib/services";
     import OneListing from "$lib/components/OneListing.svelte";
     import {type AppStats, SimpleDuration} from "$lib/types";
 

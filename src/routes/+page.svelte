@@ -2,17 +2,12 @@
     import {dataSource} from "$lib/services/dataProvider.svelte";
     import {SimpleDuration} from "$lib/types";
     import RadioButtons from "$lib/components/RadioButtons.svelte";
-    import Listing from "$lib/components/Listing.svelte";
     import {goto} from "$app/navigation";
     import SwitchButton from "$lib/components/SwitchButton.svelte";
-    import {checkAccess, formatter, setLogging} from "$lib/services";
-    import {onMount} from "svelte";
-    import {selectiveSubscribe, selectedDate, timeFormatter, dateFormatter} from "$lib/services";
-    import Listing2 from "$lib/components/Listing2.svelte";
+    import {setLogging} from "$lib/services";
+    import {selectedDate, timeFormatter, dateFormatter} from "$lib/services";
+    import Listing from "$lib/components/Listing.svelte";
     import StackedBar from "$lib/components/StackedBar.svelte";
-
-
-    const ALLOW_DEBUG_PRINT: boolean = true;
 
     let before = $state(new Date());
     let today = $derived.by(() => {
@@ -21,17 +16,7 @@
         return temp
     });
 
-    $effect(() => selectiveSubscribe(selectedDate.value) /*{
-    //     const print = true
-    //     const isToday: boolean = selectedDate.value.toDateString() === new Date().toDateString();
-    //     if (isToday) {
-    //         if (print) console.log("📅 Viewing Today: Starting Real-time Listener...");
-    //         return dataSource.subscribe(false);
-    //     } else {
-    //         if (print) console.log("📅 Viewing Past: Real-time updates disabled.");
-    //         return () => null;
-    //     }
-    // }*/);
+    $effect(() => selectedDate.giveSubscribe());
 
     const total = $derived.by(() => {
         return SimpleDuration.fromSeconds(dataSource.timeRange.totalSeconds)
@@ -40,7 +25,7 @@
     let allowLogging: boolean = $state(true);
     let isBusy: boolean = $state(false);
 
-    async function testPause(): Promise<void> {
+    /*async function testPause(): Promise<void> {
         if (isBusy) return;
 
         isBusy = true;
@@ -55,7 +40,7 @@
         } finally {
             isBusy = false
         }
-    }
+    }*/
 
     async function pause(): Promise<void> {
         if (isBusy) {
@@ -78,12 +63,6 @@
             console.log(`[${(new Date()).toISOString()}]: isBusy released`);
             isBusy = false;
         }
-    }
-
-    function pauseWrapper(): void {
-        console.log((new Date()).toISOString(), "Start");
-        pause().then();
-        console.log((new Date()).toISOString(), "End");
     }
 
     function getFormattedTimeRange(): [string, string, string] {
@@ -113,9 +92,6 @@
                         <div class="flex-item">-</div>
                         <div class="flex-item">{third}</div>
                     {/if}
-                    <div id="flex-item-1">{formatter.format(dataSource.timeRange.start)}</div>
-                    <div id="flex-item-2">-</div>
-                    <div id="flex-item-3">{formatter.format(dataSource.timeRange.end)}</div>
                 {/if}
             </div>
             <div id="flex-item-4">Total time: {total.format()}</div>
@@ -136,8 +112,7 @@
         </div>
     </div>
     <div class="display">
-<!--        <Listing/>-->
-        <Listing2 />
+        <Listing />
         <StackedBar start={today} end={before} />
     </div>
 </main>
@@ -169,28 +144,18 @@
     box-sizing: border-box;
   }
 
-  .controls {
-    height: 20%;
-  }
-
   .display {
-    height: 80%;
+    height: 100%;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
   .sub-flex-1 {
     display: flex;
     align-items: center;
   }
-
-  /*#flex-item-1, #flex-item-3, #flex-item-4 {
-    flex: 1 1 auto;
-    text-align: center;
-  }
-
-  #flex-item-2 {
-    flex: 0 1 auto;
-  }*/
 
   .flex-item {
     display: block;
@@ -229,11 +194,9 @@
       display: flex;
       align-items: center;
       flex-direction: column;
-      margin-top: 0.5rem;
     }
 
     .grid-item-2 {
-      //grid-area: 1/2/2/3;
       background-color: rgba(156, 120, 64, 0.5);
       display: flex;
       justify-content: center;
@@ -249,14 +212,6 @@
     display: flex;
     flex-direction: column;
 
-    align-items: center;
-    justify-content: center;
     height: 100dvh;
-  }
-
-  .viewer-place {
-    position: absolute;
-    left: 0;
-    top: 0;
   }
 </style>

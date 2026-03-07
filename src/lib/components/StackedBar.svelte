@@ -1,5 +1,4 @@
 <script lang="ts">
-    import {dataSource} from "$lib/services";
     import {getDailyBreakdown} from "$lib/services/ipc";
     import {stringToColor, type ChartDay, type DailyAppStat} from "$lib/services";
     import {resolver} from "$lib/services";
@@ -44,12 +43,12 @@
         const s = start.toLocaleDateString("en-CA");
         const e = end.toLocaleDateString("en-CA");
 
-        console.log(s, e);
+        // console.log(s, e);
 
         const raw = await getDailyBreakdown(s, e);
         const daysMap = Map.groupBy(raw, item => item.day);
 
-        console.log(daysMap);
+        // console.log(daysMap);
 
         const sortedDaysMap = new Map<string, Row>();
         for (const [key, value] of daysMap.entries()) {
@@ -69,11 +68,11 @@
             sortedDaysMap.set(key, newRow);
         }
 
-        console.log(sortedDaysMap);
+        // console.log(sortedDaysMap);
 
         const matrix = Array.from(sortedDaysMap.values());
 
-        console.log(matrix)
+        // console.log(matrix)
 
         //TODO filter out empty entries final_name == "" and process_key == ""
 
@@ -84,7 +83,7 @@
             });
         }
 
-        console.log(matrix);
+        // console.log(matrix);
 
         displayData = matrix;
     }
@@ -173,10 +172,10 @@
       align-items: flex-end;
       padding: 20px;
       //background: #1e1e1e;
-      border-radius: 8px;
+      //border-radius: 8px;
       gap: 10px;
       background-color: white;
-      border: 1px solid black;
+      border-top: 1px solid black;
     }
 
     .one-bar {

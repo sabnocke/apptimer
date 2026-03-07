@@ -27,4 +27,3 @@ export {
 export {selectedDate} from "./selectedDate.svelte";
 
 export {stringToColor, type DaySegment, type ChartDay, type DailyAppStat} from "./chartUtils"
-export {uiState, type ContextMenuData} from "./interactionState.svelte"

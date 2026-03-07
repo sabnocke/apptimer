@@ -2,8 +2,6 @@
     import {onMount, onDestroy} from "svelte";
     import {getCurrentWindow} from "@tauri-apps/api/window";
     import {invoke} from "@tauri-apps/api/core";
-    import GlobalContextMenu from "$lib/components/GlobalContextMenu.svelte";
-    import GlobalModal from "$lib/components/GlobalModal.svelte";
 
     let unlisten: () => void = () => {return;}
 
@@ -31,6 +29,3 @@
 </script>
 
 <slot/>
-
-<GlobalContextMenu />
-<GlobalModal />

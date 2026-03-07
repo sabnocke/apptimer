@@ -112,6 +112,8 @@ pub async fn log_switch_refresh(process_name: &str, title: &str) -> Result<bool,
     let now = Utc::now();
     let pool = DB_CONN.get().expect("Failed to get db connection");
 
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
     let record = sqlx::query_as!(
         ProcessId,
         r#"
@@ -122,10 +124,10 @@ pub async fn log_switch_refresh(process_name: &str, title: &str) -> Result<bool,
         "#,
         process_name
     )
-    .fetch_one(pool)
+    .fetch_one(&mut *tx)
     .await
     .map(|i| i.id)
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| format!("[log_switch_refresh] Process insert failed: {e}"))?;
 
     let unresolved_update = sqlx::query_as!(
         LogEntry,
@@ -143,14 +145,12 @@ pub async fn log_switch_refresh(process_name: &str, title: &str) -> Result<bool,
         "#,
         now
     )
-    .fetch_optional(pool)
+    .fetch_optional(&mut *tx)
     .await
-    .inspect_err(|e| println!("[log_switch_refresh]: {}", e))
-    .ok()
-    .flatten();
+    .map_err(|e| format!("Failed to update previous event: {e}"))?;
 
-    if unresolved_update.is_none() {
-        return Ok(false);
+    if let Some(updated) = unresolved_update {
+        println!("Closed previous event: {:?}", updated.id);
     }
 
     let end_time: Option<DateTime<Utc>> = None;
@@ -165,16 +165,14 @@ pub async fn log_switch_refresh(process_name: &str, title: &str) -> Result<bool,
         now,
         end_time
     )
-    .execute(pool)
+    .execute(&mut *tx)
     .await
     .map(|r| r.rows_affected())
     .map_err(|e| e.to_string())?;
 
-    if insert == 1 {
-        return Ok(true);
-    }
-    // unreachable
-    Ok(false)
+    tx.commit().await.map_err(|e| e.to_string())?;
+
+    Ok(insert == 1)
 }
 
 #[allow(dead_code)]
