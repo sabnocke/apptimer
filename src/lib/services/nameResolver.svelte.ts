@@ -1,6 +1,6 @@
 import {Box, SuperMap, type AppDictionary, isSystemNoise, ModSet} from "$lib/types";
 import {getSteamGameName, loadAppDictionary, updateDisplayName} from "$lib/services/ipc";
-import {type DailyAppStat, findWindowTitles} from "$lib/services";
+import {type DailyAppStat, findWindowTitles, settings} from "$lib/services";
 
 //TODO maybe rely more on manual pattern matching
 
@@ -8,6 +8,7 @@ class NameResolver {
     private _locationExists: boolean = false;
     private _mappingExists: boolean = false;
     mapping: SuperMap<string, AppDictionary> = new SuperMap();
+    public invalid_names = ["UNKNOWN", "Idle/System", "Failed to resolve!"]
 
     readonly cleanupRules = [
         {pattern: /-stable$/i, replace: ""},
@@ -87,16 +88,20 @@ class NameResolver {
         }
     }
 
-    resolveComplex(item: DailyAppStat): string {
-        if (!item.process_key) {
+    isSystemNoise(potentialName: string) : boolean {
+        return isSystemNoise(potentialName);
+    }
+
+    resolveComplex(process_key: string): string {
+        if (!process_key) {
             return "UNKNOWN"
         }
 
-        if (isSystemNoise(item.process_key)) {
+        if (settings.aggregate_group() && isSystemNoise(process_key)) {
             return "Idle/System";
         }
 
-        const b = this.getWindowTitles(item.process_key);
+        const b = this.getWindowTitles(process_key);
 
         if (b.isInElse) {
             console.error(b.unwrapElse());
@@ -106,7 +111,7 @@ class NameResolver {
         const window_titles = new ModSet(b.unwrapOk());
 
         // PWA check regex
-        if (/^[a-z]+-[a-z]{32}-.+$/.test(item.process_key)) {
+        if (/^[a-z]+-[a-z]{32}-.+$/.test(process_key)) {
             console.log("[DETECTED PWA pattern]");
             // window title can be: <program name> - <something>, I should remove both the colon and something
             const maybeName = window_titles.map(val => val.split('-')[0]).first ?? "Failed to resolve"
@@ -116,23 +121,23 @@ class NameResolver {
             return this.capitalize(someName);
         }
 
-        if (/steam_app_\d+/.test(item.process_key)) {
-            const val = this.resolveSteamGameName(item.process_key);
+        if (/steam_app_\d+/.test(process_key)) {
+            const val = this.resolveSteamGameName(process_key);
             //? Maybe the window title has some useful information
-            console.log(`For ${item.process_key} exists window title: ${window_titles.first}`);
+            console.log(`For ${process_key} exists window title: ${window_titles.first}`);
             if (val.isOk) return val.unwrapOk();
         }
 
         const vb = this.mapping
-            .fetch(item.process_key)
+            .fetch(process_key)
             .mapLeft(b => b.displayName)
             .unwrapOr("");
         if (vb !== "") return vb;
 
-        let newName: string = item.process_key;
+        let newName: string = process_key;
         for (const rule of this.cleanupRules) {
             if(!rule.pattern.test(newName)) continue;
-            newName = item.process_key.replace(rule.pattern, rule.replace);
+            newName = process_key.replace(rule.pattern, rule.replace);
         }
 
         return this.capitalize((newName));

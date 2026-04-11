@@ -18,7 +18,9 @@ export const IGNORE_LIST = new Set<string>([
     // Windows (just in case)
     "explorer.exe",
     "dwm.exe",
-    "SearchHost.exe"
+    "SearchHost.exe",
+
+    "org.kde.polkit-kde-authentication-agent-1"
 ]);
 
 export function isSystemNoise(potentialName: string): boolean {

@@ -13,10 +13,12 @@
     "windows": [
       {
         "title": "apptimer",
-        "width": 1210,
+        "width": 800,
         "height": 800,
-        "minHeight": 800,
-        "minWidth": 800
+        "minHeight": 660,
+        "minWidth": 600,
+        "maxHeight": 800,
+        "maxWidth": 800
       }
     ],
     "security": {

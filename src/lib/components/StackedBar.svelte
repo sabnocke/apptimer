@@ -1,6 +1,6 @@
 <script lang="ts">
     import {getDailyBreakdown} from "$lib/services/ipc";
-    import {stringToColor, type ChartDay, type DailyAppStat} from "$lib/services";
+    import {stringToColor, type ChartDay, type DailyAppStat, settings, split, group} from "$lib/services";
     import {resolver} from "$lib/services";
 
     let {start, end} = $props<{start: Date, end: Date}>();
@@ -39,16 +39,38 @@
         };
     }
 
+
+
+    function preprocess(src: DailyAppStat[]): DailyAppStat[] {
+        let fin = settings.aggregate_group() ? group(src) : src;
+        fin = fin.map<DailyAppStat>(item => {
+            return {
+                ...item,
+                final_name: resolver.resolveComplex(item.process_key)
+            }
+        });
+
+        if (!settings.show_unknown)
+            fin = fin.filter(item => item.final_name !== "UNKNOWN" || item.process_key !== "UNKNOWN");
+        if (!settings.show_group)
+            fin = fin.filter(
+                item => {
+                    const b = item.final_name !== "Idle/System";
+                    const c = !resolver.isSystemNoise(item.process_key);
+                    return b || c;
+                }
+            );
+
+        return fin;
+    }
+
     async function loadData() {
         const s = start.toLocaleDateString("en-CA");
         const e = end.toLocaleDateString("en-CA");
 
-        // console.log(s, e);
-
         const raw = await getDailyBreakdown(s, e);
-        const daysMap = Map.groupBy(raw, item => item.day);
-
-        // console.log(daysMap);
+        const processed = preprocess(raw);
+        const daysMap = Map.groupBy(processed, item => item.day);
 
         const sortedDaysMap = new Map<string, Row>();
         for (const [key, value] of daysMap.entries()) {
@@ -63,28 +85,15 @@
                 day: key,
                 source: remapped.toSorted((a, b) => a.total_seconds - b.total_seconds)
             }
-            //value.toSorted((a, b) => a.total_seconds - b.total_seconds)
-
             sortedDaysMap.set(key, newRow);
         }
-
-        // console.log(sortedDaysMap);
-
         const matrix = Array.from(sortedDaysMap.values());
-
-        // console.log(matrix)
-
-        //TODO filter out empty entries final_name == "" and process_key == ""
-
         for (const row of matrix) {
             const t = row.total;
             row.source.forEach(item => {
                 item.percent = (item.total_seconds / t)
             });
         }
-
-        // console.log(matrix);
-
         displayData = matrix;
     }
 
@@ -171,8 +180,6 @@
       justify-content: space-between;
       align-items: flex-end;
       padding: 20px;
-      //background: #1e1e1e;
-      //border-radius: 8px;
       gap: 10px;
       background-color: white;
       border-top: 1px solid black;
@@ -181,7 +188,6 @@
     .one-bar {
       display: flex;
       flex-direction: column;
-      //min-height: 200px;
     }
 
     .tooltip-card {
@@ -212,51 +218,4 @@
       background: #444;
       margin: 5px 0;
     }
-
-    /*.day-column {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex: 1;
-    }*/
-
-    /*.bar-track {
-      width: 100%;
-      max-width: 40px;
-      display: flex;
-      align-items: flex-end;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 6px;
-      overflow: hidden;
-    }*/
-
-    /*.bar-stack {
-      width: 100%;
-      display: flex;
-      flex-direction: column-reverse;
-      border-radius: 4px;
-      overflow: hidden;
-      transition: height 0.3s ease;
-    }*/
-
-    /*.segment {
-      width: 100%;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.2);
-
-      &:hover {
-        opacity: 0.8;
-        cursor: pointer;
-      }
-    }*/
-
-    /*.day-label {
-      margin-top: 8px;
-      font-size: 0.8rem;
-      color: #aaa;
-    }*/
-
-    /*.day-total {
-      font-size: 0.7rem;
-      color: #666;
-    }*/
 </style>

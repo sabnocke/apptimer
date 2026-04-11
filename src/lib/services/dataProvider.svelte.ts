@@ -117,11 +117,14 @@ class Provider extends Array {
 
     private startListenDaily(): void {
         listen<null>("refresh-source", () => {
-            this.load(new Date()).then();
+            this.load(new Date()).then(
+                value => this.data3 = value);
         }).then(fn => this.unListen_ = fn);
         this.listenerActive = true;
 
-        this.load(new Date()).then();
+        this.load(new Date()).then(
+            (value) => this.data3 = value);
+        this.preprocess();
     }
 
     private stopListenDaily(): void {
@@ -144,24 +147,22 @@ class Provider extends Array {
 
         this.data_ = this.data_.map<DailyAppStat>(item => ({
             ...item,
-            display_name: resolver.resolveComplex(item),
+            display_name: resolver.resolveComplex(item.process_key),
         }));
     }
 
-    public async load(date: Date): Promise<boolean> {
-        return await this.loadGetDailyBreakdown(date);
+    public async load(date: Date): Promise<DailyAppStat[]> {
+        return await this.loadGetDailyBreakdown(date)
     }
 
-    public async loadGetDailyBreakdown(date: Date): Promise<boolean> {
+    public async loadGetDailyBreakdown(date: Date): Promise<DailyAppStat[]> {
         this.loading = true;
-
         try {
-            this.data3 = await getDailyBreakdown(date, date);
             // console.log("loadGetDailyBreakdown", this.data3);
-            return true;
+            return await getDailyBreakdown(date, date);
         } catch (e) {
             console.error(e);
-            return false;
+            return [];
         } finally {
             this.loading = false;
         }

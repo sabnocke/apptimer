@@ -1,4 +1,5 @@
 import {dataSource} from "$lib/services/dataProvider.svelte";
+import type {DailyAppStat} from "$lib/services/chartUtils";
 
 export function parsedDataCreator2() {
     return dataSource
@@ -57,4 +58,55 @@ export function* zip<A, B>(one: ArrayLike<A>, two: ArrayLike<B> | B): Generator<
             yield [one[i], two as B];
         }
     }
+}
+
+export function split<T>(src: T[], predicate: (value: T, index: number, array: T[]) => boolean, thisArg?: any): [T[], T[]] {
+    let pass: T[] = [];
+    let fail: T[] = [];
+    for (let i = 0; i < src.length; i++) {
+        let item = src[i];
+        if (predicate(item, i, src)) {
+            pass.push(item);
+        } else {
+            fail.push(item);
+        }
+    }
+
+    return [pass, fail];
+}
+
+export function reduce_if<T>(
+    source: T[],
+    predicate: (value: T, index: number, array: T[]) => boolean,
+    reducer: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T,
+    initialValue: T
+) : T {
+    return source.reduce((acc, item, currentIndex, array) => {
+        return predicate(item, currentIndex, array) ? reducer(acc, item, currentIndex, array) : acc;
+    }, initialValue);
+}
+
+export function group(src: DailyAppStat[]): DailyAppStat[] {
+    const agg: DailyAppStat = {
+        day: src[0]?.day || "",
+        final_name: "Idle/System",
+        process_key: "obfuscated",
+        total_seconds: 0,
+        session_count: 0
+    };
+
+    const result = reduce_if(src,
+        (item) => item.final_name === "Idle/System",
+        (acc, item) => {
+            return {
+                ...acc,
+                total_seconds: acc.total_seconds + item.total_seconds,
+                session_count: acc.session_count + item.session_count
+            }
+        }, agg
+    )
+
+    const fin = src.filter(item => item.final_name != "Idle/System");
+
+    return [...fin, result];
 }

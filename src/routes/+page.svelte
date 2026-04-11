@@ -83,23 +83,14 @@
 <main class="container">
     <div class="controls grid-container">
         <div class="grid-item-1">
-            <div class="sub-flex-1">
-                {#if true}
-                    {@const [first, second, third] = getFormattedTimeRange()}
-                    <div class="flex-item">{first}</div>
-                    {#if second && third}
-                        <div class="flex-item">{second}</div>
-                        <div class="flex-item">-</div>
-                        <div class="flex-item">{third}</div>
-                    {/if}
+            {#if true}
+                {@const [first, second, third] = getFormattedTimeRange()}
+                <div class="flex-item">{first}</div>
+                {#if second && third}
+                    <div class="">{second} - {third}</div>
                 {/if}
-            </div>
+            {/if}
             <div id="flex-item-4">Total time: {total.format()}</div>
-            <button onclick={() => goto("/dataDisplay")}>Data Display</button>
-            <button onclick={() => goto("/editorDisplay")}>Editor</button>
-        </div>
-        <div class="grid-item-2">
-            <RadioButtons/>
         </div>
         <div class="grid-item-3">
             <div class="flex-container">
@@ -108,7 +99,11 @@
                 <button disabled={selectedDate.isToday} onclick={() => selectedDate.inc()}>Next</button>
             </div>
             <SwitchButton value={allowLogging ? "Pause" : "Resume"} onmousedown={pause} disabled={isBusy}/>
-
+            <div>
+                <button onclick={() => goto("/settings")}>Settings</button>
+                <button onclick={() => goto("/dataDisplay")}>Data Display</button>
+                <button onclick={() => goto("/editorDisplay")}>Editor</button>
+            </div>
         </div>
     </div>
     <div class="display">
@@ -152,21 +147,16 @@
     justify-content: space-between;
   }
 
-  .sub-flex-1 {
-    display: flex;
-    align-items: center;
-  }
-
-  .flex-item {
+  /*.flex-item {
     display: block;
     width: 80%;
 
-    &:nth-child(1) {
+    !*&:nth-child(1) {
       padding-left: 1rem;
       flex: 1 0 50%;
-    }
+    }*!
 
-    &:nth-child(2), &:nth-child(4) {
+    !*&:nth-child(2), &:nth-child(4) {
       flex: 1 1 auto;
     }
 
@@ -174,37 +164,33 @@
       padding-left: 0.25rem;
       padding-right: 0.25rem;
       flex: 0 1 auto;
-    }
-  }
+    }*!
+  }*/
 
   .flex-container {
     display: flex;
   }
 
   .grid-container {
-    display: grid;
-    grid-template-rows: 1fr;
+    //display: grid;
+    /*grid-template-rows: 1fr;
     grid-template-columns: 1fr 50% 1fr;
     gap: 0;
     width: 100%;
-
+*/
     .grid-item-1 {
       background-color: rgba(37, 177, 196, 0.5);
-      align-self: start;
+      // align-self: start;
       display: flex;
       align-items: center;
-      flex-direction: column;
+      // flex-direction: column;
+      justify-content: space-evenly;
     }
-
-    .grid-item-2 {
-      background-color: rgba(156, 120, 64, 0.5);
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-    }
-
     .grid-item-3 {
       padding: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
   }
 

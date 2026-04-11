@@ -1,7 +1,10 @@
 <script lang="ts">
-    import {dataSource, dateFormatter, resolver, selectedDate} from "$lib/services";
+    import {type DailyAppStat,
+        dataSource, dateFormatter, resolver, selectedDate, settings,
+        split, group
+    } from "$lib/services";
     import OneListing from "$lib/components/OneListing.svelte";
-    import {type AppStats, SimpleDuration} from "$lib/types";
+    import {SimpleDuration} from "$lib/types";
 
     $effect(() => selectedDate.giveSubscribe());
 
@@ -11,11 +14,59 @@
             .reduce((acc, item) => acc + item, 0)
     );
 
-    const sorted: AppStats[] = $derived(
-        dataSource.data_.toSorted((a, b) => {
-            return b.total_seconds - a.total_seconds;
-        })
-    );
+    function compare(a: DailyAppStat, b: DailyAppStat): number {
+        return b.total_seconds - a.total_seconds;
+    }
+
+    function sorting(src: DailyAppStat[]): DailyAppStat[] {
+        let fin = settings.aggregate_group() ? group(src) : src;
+        let [valid, invalid] = split(fin, item => !resolver.invalid_names.includes(item.final_name))
+        if (!settings.show_unknown)
+            invalid = invalid.filter(item => item.final_name != "UNKNOWN");
+        if (!settings.show_group)
+            invalid = invalid.filter(item => item.final_name != "Idle/System");
+        return [
+            ...valid.sort(compare),
+            ...invalid.sort(compare)
+        ];
+    }
+
+
+
+    /*function group(src: DailyAppStat[]): DailyAppStat[] {
+        const agg: DailyAppStat = {
+            day: src[0]?.day || "",
+            final_name: "Idle/System",
+            process_key: "obfuscated",
+            total_seconds: 0,
+            session_count: 0
+        };
+
+        const result = reduce_if(src,
+            (item) => item.final_name === "Idle/System",
+            (acc, item) => {
+                return {
+                    ...acc,
+                    total_seconds: acc.total_seconds + item.total_seconds,
+                    session_count: acc.session_count + item.session_count
+                }
+            }, agg
+        )
+
+        const fin = src.filter(item => item.final_name != "Idle/System");
+
+        return [...fin, result];
+    }*/
+
+    const sorted = $derived.by(() => {
+        let source = dataSource.data_.map<DailyAppStat>(item => {
+            return {
+                ...item,
+                final_name: resolver.resolveComplex(item.process_key)
+            }
+        });
+        return sorting(source);
+    })
 
     function getPercentage(up: number): string {
         if (total === 0) return "0%";
@@ -34,16 +85,15 @@
     {:else if sorted.length === 0}
         <div>Nothing to display for {dateFormatter.format(selectedDate.value)}</div>
     {:else if sorted.length > 0}
-        {#each sorted as {final_name, process_key, total_seconds} (process_key)}
+        {#each sorted as {final_name, process_key, total_seconds} (final_name)}
             {@const timed = SimpleDuration.format_seconds(total_seconds)}
 
             <OneListing
-                name={resolver.resolve(final_name)}
+                name={final_name}
                 time={timed}
                 percentage={getPercentage(total_seconds)}
             />
         {/each}
-        <div>{SimpleDuration.format_seconds(total)}</div>
     {:else}
         <div>LOADING</div>
     {/if}

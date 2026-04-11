@@ -18,11 +18,10 @@ export {
 export {
     parsedDataCreator2,
     selectiveSubscribe,
-    timeFormatter,
-    formatter,
-    dateFormatter,
-    zip
+    timeFormatter, formatter, dateFormatter,
+    zip, split, group, reduce_if
 } from "./utils";
+export {settings} from "./settings.svelte";
 
 export {selectedDate} from "./selectedDate.svelte";
 
