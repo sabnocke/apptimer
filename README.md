@@ -31,6 +31,7 @@ TypeScript in Vite.
   - Probably via parent process
 - [X] Add ability to pause tracking (will need IPC call)
 - [ ] Add dialog to either close the program (exit) or minimize it (hide) upon pressing exit button
+- [ ] Add inactivity check
 
 ## Visualization
 
