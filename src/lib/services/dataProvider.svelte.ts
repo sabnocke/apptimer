@@ -1,7 +1,6 @@
-import {type TimeRange, SimpleDuration} from "$lib/types";
+import {SimpleDuration, type TimeRange} from "$lib/types";
 import {listen} from "@tauri-apps/api/event";
-import {type DailyAppStat, getDailyBreakdown} from "$lib/services";
-import {resolver} from "$lib/services";
+import {type DailyAppStat, getDailyBreakdown, resolver} from "$lib/services";
 
 export interface LogEntry<T> {
     id: number,
@@ -19,37 +18,35 @@ interface ErrorRecord {
 }
 
 class Provider extends Array {
-    private data3 = $state<DailyAppStat[]>([]);
-    private uniqueNames_: string[] = $state<string[]>([]);
-
-    private lookup3: Map<string, DailyAppStat[]> = $derived(Map.groupBy(this.data3, val => val.process_key));
+    private data_ = $state<DailyAppStat[]>([]);
+    private error_: ErrorRecord = $state<ErrorRecord>({});
+    private unListen_: (() => void) = () => {};
+    // private uniqueNames_: string[] = $state<string[]>([]);
+    // private lookup3: Map<string, DailyAppStat[]> = $derived(Map.groupBy(this.data, val => val.process_key));
 
     loading: boolean = $state(true);
     loadedPast: boolean = false;
 
-    private error_: ErrorRecord = $state<ErrorRecord>({});
-
     listeners: number = 0;
-    private unListen_: (() => void) = () => {};
     listenerActive = false;
 
-    get data_() {
-        return this.data3;
+    get data() {
+        return this.data_;
     }
 
-    get lookup() {
+    /*get lookup() {
         return this.lookup3;
-    }
+    }*/
 
-    private set data_(value: DailyAppStat[]) {
-        this.data3 = value;
-    }
+    /*private set data_(value: DailyAppStat[]) {
+        this.data = value;
+    }*/
 
     timeRange: TimeRange = $derived.by<TimeRange>(() => {
         if (this.isEmpty)
             return {start: undefined, end: undefined, totalSeconds: 0}
 
-        const total = this.data_
+        const total = this.data
             .map(item => item.total_seconds)
             .reduce((acc, item) => acc + item, 0);
         const range = SimpleDuration.offsetFromDate(total);
@@ -60,13 +57,6 @@ class Provider extends Array {
         }
     })
 
-
-    get getUniqueNames(): string[] {
-        //! UNUSED in Listing
-        //! Possibly unnecessary
-        return this.uniqueNames_;
-    }
-
     get isErrorSet(): boolean {
         return this.error_.from !== undefined && this.error_.message !== undefined;
     }
@@ -76,13 +66,13 @@ class Provider extends Array {
     }
 
     get isEmpty(): boolean {
-        return this.data3.length === 0;
+        return this.data.length === 0;
     }
 
     public subscribe(): () => void {
         this.listeners += 1;
         if (this.listeners === 1) {
-            this.startListenDaily();
+            this.startListenDaily2();
         }
 
         return () => {
@@ -93,14 +83,14 @@ class Provider extends Array {
         }
     }
 
-    private stringToDate(item: LogEntry<string>): LogEntry<Date> {
+    /*private stringToDate(item: LogEntry<string>): LogEntry<Date> {
         return {
             ...item,
             start_time: new Date(item.start_time),
             end_time: item.end_time ? new Date(item.end_time) : null,
             temp_end_time: new Date(item.temp_end_time),
         };
-    }
+    }*/
 
     constructor() {
         super();
@@ -111,20 +101,30 @@ class Provider extends Array {
             this.unListen_();
             this.listenerActive = false;
         } else {
-            this.startListenDaily();
+            this.startListenDaily2();
         }
     }
 
-    private startListenDaily(): void {
+    /*private startListenDaily(): void {
         listen<null>("refresh-source", () => {
             this.load(new Date()).then(
-                value => this.data3 = value);
+                value => this.data = value);
         }).then(fn => this.unListen_ = fn);
         this.listenerActive = true;
 
         this.load(new Date()).then(
-            (value) => this.data3 = value);
+            (value) => this.data = value);
         this.preprocess();
+    }*/
+
+    private startListenDaily2(): void {
+        listen<null>("refresh-source", () => {
+            void this.refreshData(new Date());
+        }).then(fn => this.unListen_ = fn);
+
+        this.listenerActive = true;
+
+        void this.refreshData(new Date());
     }
 
     private stopListenDaily(): void {
@@ -135,13 +135,13 @@ class Provider extends Array {
     }
 
     uniqueNames(): string[] {
-        if (this.loading || this.data_.length === 0)
+        if (this.loading || this.data.length === 0)
             return [];
 
-        return this.data_.map(one => one.final_name);
+        return this.data.map(one => one.final_name);
     }
 
-    private preprocess(): void {
+    /*private preprocess(): void {
         console.log("[CALL preprocess]");
         if (this.loading || this.data_.length === 0) return;
 
@@ -149,6 +149,34 @@ class Provider extends Array {
             ...item,
             display_name: resolver.resolveComplex(item.process_key),
         }));
+    }*/
+
+    private async preprocess2(rawData: DailyAppStat[]): Promise<DailyAppStat[]> {
+        console.log("[CALL preprocess]");
+        if (rawData.length === 0) return [];
+
+        return await Promise.all(
+            rawData.map(async (item) => ({
+                day: item.day,
+                final_name: await resolver.resolveComplexAsync(item.process_key),
+                process_key: item.process_key,
+                total_seconds: item.total_seconds,
+                session_count: item.session_count,
+            }))
+        );
+    }
+
+    private async refreshData(date: Date): Promise<void> {
+        this.loading = true;
+        try {
+            const raw = await getDailyBreakdown(date, date);
+            this.data_ = await this.preprocess2(raw);
+        } catch (e) {
+            console.error("Failed to load and process data:", e);
+            this.error_ = {from: "refreshData", message: String(e)};
+        } finally {
+            this.loading = false;
+        }
     }
 
     public async load(date: Date): Promise<DailyAppStat[]> {

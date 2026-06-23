@@ -5,7 +5,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use super::{LAST_NAME, LAST_TITLE};
-use crate::db::{log_switch, DB_CONN, log_switch_refresh};
+use crate::db::{log_switch, log_switch_refresh, DB_CONN};
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 
 static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| {
@@ -117,8 +117,8 @@ pub async fn get_process_info_(handle: &AppHandle) {
         match log_switch_refresh(&wi.process_name, &wi.window_title).await {
             Ok(b) => {
                 handle.emit("refresh-source", ());
-            },
-            Err(e) => println!("DB Error: {}", e)
+            }
+            Err(e) => println!("DB Error: {}", e),
         }
 
         LAST_TITLE.store(Arc::new(wi.window_title));

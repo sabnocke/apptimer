@@ -12,20 +12,51 @@
     "sql:default",
     "fs:default",
     {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "$APPCONFIG/config.yaml"
+        }
+      ]
+    },
+    {
       "identifier": "fs:allow-exists",
-      "allow": [{"path": "$APPCONFIG/mapping.json"}, {"path": "$APPCONFIG"}]
+      "allow": [
+        {
+          "path": "$APPCONFIG/config.yaml"
+        },
+        {
+          "path": "$APPCONFIG"
+        }
+      ]
     },
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{"path": "$APPCONFIG/mapping.json"}]
+      "allow": [
+        {
+          "path": "$APPCONFIG/config.yaml"
+        }
+      ]
     },
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{"path": "$APPCONFIG/*"}]
+      "allow": [
+        {
+          "path": "$APPCONFIG/config.yaml"
+        }
+      ]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [{"path": "$APPCONFIG"}]
+      "allow": [
+        {
+          "path": "$APPCONFIG"
+        }
+      ]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://store.steampowered.com/"}]
     }
   ]
 }

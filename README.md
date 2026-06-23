@@ -28,16 +28,13 @@
 
 ## Name resolving
 
-- [ ] Add steam name resolver
-  - [ ] There is something, but does it work?
-  - [ ] It seems that just reading window title might be enough
+- [X] Add steam name resolver
+  - There is something, but does it work?
 - [x] Figure out name resolving of PWA
   - Seems to be issue on Vivaldi and any PWA
   - `Vivaldi-bobcidbgoopfnikbbgihiiihapdmbplc-Def` >> `Notion`
-  - Or since it still uses Vivaldi group them together (the simpler solution)
-- [ ] Load `mapping` from DB instead of a file
-  - [ ] Also remove the file permission thing
 - [ ] Add ability to add resolver rules from frontend
+  - `config.yaml` solves resolver rules issue
 
 ## Clean-up
 

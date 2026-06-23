@@ -1,7 +1,7 @@
 import {invoke} from "@tauri-apps/api/core";
 import type {LogEntry} from "$lib/services/dataProvider.svelte";
 import type {AppDictionary, AppStats} from "$lib/types";
-import type {ChartDay, DailyAppStat} from "$lib/services/chartUtils";
+import type {DailyAppStat} from "$lib/services/chartUtils";
 import {Box} from "$lib/types";
 
 export function getTodayLogs() {
@@ -31,6 +31,10 @@ export function checkAccess(): Promise<boolean> {
 
 export function getSteamGameName(appId: number): Promise<string> {
     return invoke<string>("fetch_load_steam_game_data", {app_id: appId});
+}
+
+export function fetchSteamGameData(appId: number): Promise<string> {
+    return invoke<string>("fetch_steam_game_data", {app_id: appId})
 }
 
 export function loadAppDictionary(): Promise<AppDictionary[]> {

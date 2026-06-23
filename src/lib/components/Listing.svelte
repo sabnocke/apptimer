@@ -9,7 +9,7 @@
     $effect(() => selectedDate.giveSubscribe());
 
     const total: number = $derived(
-        dataSource.data_
+        dataSource.data
             .map(item => item.total_seconds)
             .reduce((acc, item) => acc + item, 0)
     );
@@ -31,48 +31,28 @@
         ];
     }
 
+    let sorted = $state<DailyAppStat[]>([]);
 
+    $effect(() => {
+        const currentData = dataSource.data;
 
-    /*function group(src: DailyAppStat[]): DailyAppStat[] {
-        const agg: DailyAppStat = {
-            day: src[0]?.day || "",
-            final_name: "Idle/System",
-            process_key: "obfuscated",
-            total_seconds: 0,
-            session_count: 0
-        };
-
-        const result = reduce_if(src,
-            (item) => item.final_name === "Idle/System",
-            (acc, item) => {
-                return {
-                    ...acc,
-                    total_seconds: acc.total_seconds + item.total_seconds,
-                    session_count: acc.session_count + item.session_count
-                }
-            }, agg
-        )
-
-        const fin = src.filter(item => item.final_name != "Idle/System");
-
-        return [...fin, result];
-    }*/
-
-    const sorted = $derived.by(() => {
-        let source = dataSource.data_.map<DailyAppStat>(item => {
-            return {
-                ...item,
-                final_name: resolver.resolveComplex(item.process_key)
-            }
-        });
-        return sorting(source);
-    })
+        (async () => {
+            const resolvedData = await Promise.all(
+                currentData.map(async (item) => {
+                    return {
+                        ...item,
+                        final_name: await resolver.resolveComplexAsync(item.process_key)
+                    };
+                })
+            );
+            sorted = sorting(resolvedData);
+        })();
+    });
 
     function getPercentage(up: number): string {
         if (total === 0) return "0%";
         return (up / total * 100).toFixed(2) + "%";
     }
-
 </script>
 
 <div class="display">

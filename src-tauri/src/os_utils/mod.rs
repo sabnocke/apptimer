@@ -1,5 +1,5 @@
 use arc_swap::ArcSwap;
-use std::sync::{LazyLock};
+use std::sync::LazyLock;
 
 static LAST_NAME: LazyLock<ArcSwap<String>> =
     LazyLock::new(|| ArcSwap::from_pointee(String::new()));

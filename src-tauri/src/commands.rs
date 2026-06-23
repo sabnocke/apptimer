@@ -1,16 +1,12 @@
+use super::db::{final_store, load_steam_game_data, SteamApp, DB_CONN};
 use chrono::{DateTime, Local, TimeZone, Utc};
-use serde::Serialize;
-use std::fmt;
-use tauri::command;
 use reqwest;
-use serde_json::{Value,};
+use serde::Serialize;
+use serde_json::Value;
+use std::convert::TryFrom;
+use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
-use super::db::{
-    DB_CONN, 
-    final_store, 
-    load_steam_game_data,
-};
-
+use tauri::command;
 
 static ALLOW_LOGGING: AtomicBool = AtomicBool::new(true);
 
@@ -123,7 +119,7 @@ pub async fn get_today_logs() -> Result<Vec<LogEntry>, String> {
 #[command]
 pub async fn get_logs_delta(now: DateTime<Utc>) -> Result<Vec<LogEntry>, String> {
     let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
-    
+
     let (start_utc, end_utc) = get_start_end_date(now);
 
     let logs = sqlx::query_as!(
@@ -165,8 +161,7 @@ fn get_start_end_date(date: DateTime<Utc>) -> (DateTime<Utc>, DateTime<Utc>) {
         Utc::now()
     } else {
         let end_ = date.date_naive().and_hms_opt(23, 59, 59).unwrap();
-        Utc
-            .from_local_datetime(&end_)
+        Utc.from_local_datetime(&end_)
             .single()
             .expect("Ambiguous local time due to DST")
             .with_timezone(&Utc)
@@ -174,7 +169,6 @@ fn get_start_end_date(date: DateTime<Utc>) -> (DateTime<Utc>, DateTime<Utc>) {
 
     (start_utc, end_utc)
 }
-
 
 async fn __get_unique_names(when: DateTime<Utc>) -> Result<Vec<String>, String> {
     let pool = DB_CONN.get().ok_or("Failed to get db pool".to_string())?;
@@ -186,16 +180,15 @@ async fn __get_unique_names(when: DateTime<Utc>) -> Result<Vec<String>, String> 
         SELECT DISTINCT(p.name) from processes p
         JOIN events e ON e.process_id = p.id
         WHERE e.start_time >= ? AND e.end_time <= ?
-        "#
+        "#,
     )
-        .bind(start)
-        .bind(end)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    .bind(start)
+    .bind(end)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(result)
-
 }
 
 #[command]
@@ -204,9 +197,7 @@ pub async fn get_unique_names(when: Option<DateTime<Utc>>) -> Result<Vec<String>
     let result = if let Some(some_when) = when {
         __get_unique_names(some_when).await?
     } else {
-        sqlx::query_scalar!(
-            "SELECT name FROM processes"
-        )
+        sqlx::query_scalar!("SELECT name FROM processes")
             .fetch_all(pool)
             .await
             .map_err(|e| e.to_string())?
@@ -261,10 +252,13 @@ pub struct GameDetails {
 
 #[command]
 pub async fn fetch_steam_game_data(app_id: u32) -> Option<String> {
-    let url = format!("https://store.steampowered.com/api/appdetails?appids={}", app_id);
-
+    let url = format!(
+        "https://store.steampowered.com/api/appdetails?appids={}",
+        app_id
+    );
+    println!("{}", url);
     let resp = reqwest::get(&url).await.ok()?.json::<Value>().await.ok()?;
-
+    println!("{}", resp);
     let game_data = resp.get(app_id.to_string())?;
 
     if game_data.get("success")?.as_bool()? {
@@ -279,15 +273,33 @@ pub async fn fetch_steam_game_data(app_id: u32) -> Option<String> {
 pub async fn fetch_load_steam_game_data(app_id: u32) -> String {
     let base_name = format!("steam_app_{}", app_id);
     let name = load_steam_game_data(app_id).await;
+    println!("FetchLoadSteamGameData: {} => {}", app_id, name);
     if !name.is_empty() {
         return name;
     }
+    println!("FetchLoadSteamGameData: {} => {}", app_id, name);
     if let Some(name) = fetch_steam_game_data(app_id).await {
         update_display_name(base_name, name.clone());
         return name;
     }
 
     base_name
+}
+
+#[allow(unused)]
+#[command]
+pub async fn get_steam_name(app_id: i64) -> Result<Option<SteamApp>, String> {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+    let result = sqlx::query!(r#" SELECT * FROM games WHERE appid = ?"#, app_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| format!("Failed to get data: {}", e))?
+        .map(|row| SteamApp {
+            appid: row.appid.try_into().unwrap_or(0),
+            name: row.name,
+        });
+
+    Ok(result)
 }
 
 #[derive(Debug, sqlx::FromRow, serde::Serialize)]
@@ -301,10 +313,7 @@ pub struct AppDictionary {
 #[command]
 pub async fn load_app_dictionary() -> Vec<AppDictionary> {
     let pool = DB_CONN.get().expect("Failed to get db connection");
-    sqlx::query_as!(
-        AppDictionary,
-        "SELECT * FROM app_dictionary"
-    )
+    sqlx::query_as!(AppDictionary, "SELECT * FROM app_dictionary")
         .fetch_all(pool)
         .await
         .unwrap_or_default()
@@ -315,8 +324,8 @@ pub async fn update_display_name(process_key: String, display_name: String) -> b
     let pool = DB_CONN.get().expect("Failed to get db connection");
     let r = sqlx::query!(
         r#"
-        INSERT INTO app_dictionary (process_key, display_name)
-        VALUES (?, ?)
+        INSERT INTO app_dictionary (process_key, display_name, category, icon_data)
+        VALUES (?, ?, '', '')
         ON CONFLICT(process_key)
         DO UPDATE SET display_name = excluded.display_name
         "#,
@@ -328,10 +337,9 @@ pub async fn update_display_name(process_key: String, display_name: String) -> b
 
     match r {
         Ok(rows) => rows.rows_affected() > 0,
-        Err(_) => false
+        Err(_) => false,
     }
 }
-
 
 #[derive(Debug, sqlx::FromRow, serde::Serialize)]
 pub struct AppStat {
@@ -343,10 +351,9 @@ pub struct AppStat {
 
 #[command]
 pub async fn get_stats_in_range(
-    start_date: &str,   // "2025-01-01"
-    end_date: &str     // "2025-01-07"
+    start_date: &str, // "2025-01-01"
+    end_date: &str,   // "2025-01-07"
 ) -> Result<Vec<AppStat>, String> {
-
     let pool = DB_CONN.get().expect("Failed to get db connection");
 
     // We query the Daily View and aggregate the results for the requested window.
@@ -385,10 +392,10 @@ pub struct DailyAppStat {
 #[command]
 pub async fn get_daily_breakdown(
     start_date: String,
-    end_date: String
+    end_date: String,
 ) -> Result<Vec<DailyAppStat>, String> {
     let pool = DB_CONN.get().expect("Failed to get db connection");
-    
+
     let stats = sqlx::query_as!(
         DailyAppStat,
         r#"
@@ -402,7 +409,8 @@ pub async fn get_daily_breakdown(
         WHERE day >= ? AND day <= ?
         ORDER BY day ASC, total_seconds DESC
         "#,
-        start_date, end_date
+        start_date,
+        end_date
     )
     .fetch_all(pool)
     .await
@@ -415,10 +423,10 @@ pub async fn get_daily_breakdown(
 pub async fn add_recognition_rule(
     process: String,
     pattern: String,
-    name: String
+    name: String,
 ) -> Result<bool, String> {
     let pool = DB_CONN.get().expect("Failed to get db connection");
-    
+
     let result = sqlx::query!(
         "INSERT OR IGNORE INTO app_recognition_rules (process_key, title_pattern, display_name) VALUES (?, ?, ?)",
         process, pattern, name
@@ -441,9 +449,9 @@ pub async fn find_window_titles(process_name: String) -> Result<Vec<String>, Str
         "#,
         process_name
     )
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(result)
 }
@@ -451,7 +459,7 @@ pub async fn find_window_titles(process_name: String) -> Result<Vec<String>, Str
 #[command]
 pub async fn find_pattern_matches(
     process_key: String,
-    pattern: String
+    pattern: String,
 ) -> Result<Vec<String>, String> {
     let pool = DB_CONN.get().expect("Failed to get db connection");
 
@@ -471,5 +479,4 @@ pub async fn find_pattern_matches(
     .map_err(|e| e.to_string())?;
 
     Ok(results)
-
 }

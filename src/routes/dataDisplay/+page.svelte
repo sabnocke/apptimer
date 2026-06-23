@@ -27,8 +27,7 @@
 <div class="container">
     <div class="sidebar-base">
         <button class="some-btn" onclick={() => console.log(dataSource.uniqueNames())}>Fully resolved names</button>
-        <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.getUniqueNames))}>Get unique names</button>
-        <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.data_))}>Entry data</button>
+        <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.data))}>Entry data</button>
         <button class="some-btn" onclick={() => console.log(dataSource)}>Show error</button>
         <button class="some-btn" onclick={() => console.log(getStatsInRange("2026-01-23", "2026-01-30"))}>
             Test getStatsInRange for 23-01-2026 -- 30-01-2026

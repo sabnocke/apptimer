@@ -1,10 +1,11 @@
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
-    Pool, Sqlite,
+    Executor, Pool, Sqlite,
 };
 
 use crate::commands::LogEntry;
 use chrono::{DateTime, Local, TimeZone, Utc};
+use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::pin::Pin;
 use std::{str::FromStr, time::Duration};
@@ -22,7 +23,7 @@ struct ProcessId {
 #[allow(dead_code)]
 fn get_migrate(
     pool: &Pool<Sqlite>,
-) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output=()> + Send>> + Send> {
+) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send> {
     Box::new(move || {
         let pool = pool.clone();
         Box::pin(async move {
@@ -38,7 +39,7 @@ fn get_migrate(
 #[allow(dead_code)]
 fn get_migrate(
     pool: &Pool<Sqlite>,
-) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output=()> + Send>> + Send + '_> {
+) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + '_> {
     Box::new(move || {
         let pool = pool.clone();
         Box::pin(async move {
@@ -81,10 +82,7 @@ pub async fn get_today_events_count() -> Result<i64, String> {
     let pool = DB_CONN.get_or_init(init_db).await;
 
     let now_local = Local::now();
-    let midnight_local_now = now_local
-        .date_naive()
-        .and_hms_opt(0, 0, 0)
-        .unwrap();
+    let midnight_local_now = now_local.date_naive().and_hms_opt(0, 0, 0).unwrap();
 
     let start_utc = Local
         .from_local_datetime(&midnight_local_now)
@@ -94,15 +92,17 @@ pub async fn get_today_events_count() -> Result<i64, String> {
 
     let end_utc = Utc::now();
 
-    let result: (i64,) = sqlx::query_as(r#"
+    let result: (i64,) = sqlx::query_as(
+        r#"
             SELECT COUNT(*) FROM events
             WHERE start_time >= ? AND end_time <= ?
-        "#)
-        .bind(start_utc)
-        .bind(end_utc)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        "#,
+    )
+    .bind(start_utc)
+    .bind(end_utc)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(result.0)
 }
@@ -194,7 +194,7 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
     .fetch_one(pool)
     .await
     .map_err(|e| e.to_string())?;
-    
+
     //? This can fail (first entry of the day)
     let unresolved_update = sqlx::query_as!(
         LogEntry,
@@ -216,7 +216,6 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
     .await
     .map_err(|e| format!("log_switch::update error/warning: {}", e.to_string()));
 
-    
     let end_time: Option<DateTime<Utc>> = None;
     let insert = sqlx::query_as!(
         LogEntry,
@@ -242,14 +241,14 @@ pub async fn log_switch(process_name: &str, title: &str) -> Result<(LogEntry, Lo
     .map_err(|e| format!("log_switch::insert error/warning: {}", e.to_string()))?;
 
     match get_today_events_count().await {
-        Ok(count) => {println!("- today events count: {}", count)}
+        Ok(count) => {
+            println!("- today events count: {}", count)
+        }
         Err(e) => println!("- error while getting today events count: {}", e),
     }
 
     let update = match unresolved_update {
-        Ok(data) => {
-            data.unwrap_or(LogEntry::default())
-        },
+        Ok(data) => data.unwrap_or(LogEntry::default()),
         Err(e) => {
             println!("{}", e);
             LogEntry::default()
@@ -265,14 +264,16 @@ pub async fn final_store() {
     let pool = DB_CONN.get_or_init(init_db).await;
 
     let q = sqlx::query!(
-            r#"
+        r#"
             UPDATE events
             SET end_time = ?, temp_end_time = ?
             WHERE end_time IS NULL
             "#,
-            now,
-            now
-        ).execute(pool).await;
+        now,
+        now
+    )
+    .execute(pool)
+    .await;
 
     match q {
         Ok(r) => println!("Closed {} dangling sessions", r.rows_affected()),
@@ -288,11 +289,73 @@ pub async fn load_steam_game_data(app_id: u32) -> String {
         "SELECT display_name FROM app_dictionary WHERE process_key = ?",
         name
     )
-        .fetch_optional(pool)
+    .fetch_optional(pool)
+    .await
+    .inspect_err(|e| println!("[load_steam_game_data]: {}", e))
+    .ok()
+    .flatten()
+    .map(|record| record.display_name)
+    .unwrap_or_default()
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SteamAppListResponse {
+    pub applist: SteamAppList,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SteamAppList {
+    pub apps: Vec<SteamApp>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct SteamApp {
+    pub appid: u32,
+    pub name: String,
+}
+
+pub async fn fetch_steam_app_list() -> Result<Vec<SteamApp>, String> {
+    let url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/";
+    println!("Downloading Steam App List...");
+
+    let response = reqwest::get(url)
         .await
-        .inspect_err(|e| println!("[load_steam_game_data]: {}", e))
-        .ok().flatten()
-        .map(|record| record.display_name)
-        .unwrap_or_default()
-    
+        .inspect(|v| println!("[fetch_steam_app_list]: {}", v.status()))
+        .map_err(|e| e.to_string())?;
+
+    let parsed_data: SteamAppListResponse = response.json().await.map_err(|e| e.to_string())?;
+
+    println!(
+        "Successfully downloaded {} games!",
+        parsed_data.applist.apps.len()
+    );
+    Ok(parsed_data.applist.apps)
+}
+
+pub async fn set_steam_app_table(apps: Vec<SteamApp>) -> Result<bool, String> {
+    let pool = DB_CONN.get().expect("Failed to get db connection");
+
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+    let mut acc: u64 = 0;
+
+    for item in apps {
+        let a = sqlx::query("INSERT OR REPLACE INTO games (appid, name) VALUES (?, ?)")
+            .bind(item.appid)
+            .bind(&item.name)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| format!("Failed to insert entry: {}", e))?;
+
+        acc += a.rows_affected();
+    }
+
+    tx.commit()
+        .await
+        .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+
+    Ok(acc > 0)
 }

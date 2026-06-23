@@ -1,6 +1,6 @@
 <script lang="ts">
     import {getDailyBreakdown} from "$lib/services/ipc";
-    import {stringToColor, type ChartDay, type DailyAppStat, settings, split, group} from "$lib/services";
+    import {stringToColor, type ChartDay, type DailyAppStat, settings, group} from "$lib/services";
     import {resolver} from "$lib/services";
 
     let {start, end} = $props<{start: Date, end: Date}>();
@@ -39,19 +39,21 @@
         };
     }
 
-
-
-    function preprocess(src: DailyAppStat[]): DailyAppStat[] {
+    async function preprocessAsync(src: DailyAppStat[]): Promise<DailyAppStat[]> {
         let fin = settings.aggregate_group() ? group(src) : src;
-        fin = fin.map<DailyAppStat>(item => {
-            return {
-                ...item,
-                final_name: resolver.resolveComplex(item.process_key)
-            }
-        });
+
+        fin = await Promise.all(
+            fin.map(async (item) => {
+                return {
+                    ...item,
+                    final_name: await resolver.resolveComplexAsync(item.process_key)
+                };
+            })
+        );
 
         if (!settings.show_unknown)
             fin = fin.filter(item => item.final_name !== "UNKNOWN" || item.process_key !== "UNKNOWN");
+
         if (!settings.show_group)
             fin = fin.filter(
                 item => {
@@ -69,7 +71,7 @@
         const e = end.toLocaleDateString("en-CA");
 
         const raw = await getDailyBreakdown(s, e);
-        const processed = preprocess(raw);
+        const processed = await preprocessAsync(raw);
         const daysMap = Map.groupBy(processed, item => item.day);
 
         const sortedDaysMap = new Map<string, Row>();
@@ -166,7 +168,7 @@
             {#each hoveredDay.source as segment (segment.uid)}
                 <div class="row">
                     <span style:color={stringToColor(segment.final_name)}>●</span>
-                    <span>{resolver.resolve(segment.final_name)}</span>
+                    <span>{segment.final_name}</span>
                     <span class="right">{segment.percent < 0.01 ? "< 1%" : (segment.percent * 100).toFixed(2) + "%"}</span>
                 </div>
             {/each}

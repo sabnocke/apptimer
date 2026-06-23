@@ -8,6 +8,7 @@
     import {selectedDate, timeFormatter, dateFormatter} from "$lib/services";
     import Listing from "$lib/components/Listing.svelte";
     import StackedBar from "$lib/components/StackedBar.svelte";
+    import {namingEngine} from "$lib/services/RulesEngine/engine.svelte";
 
     let before = $state(new Date());
     let today = $derived.by(() => {
@@ -100,9 +101,11 @@
             </div>
             <SwitchButton value={allowLogging ? "Pause" : "Resume"} onmousedown={pause} disabled={isBusy}/>
             <div>
+                <button onclick={() => namingEngine.openConfigInDefaultEditor().then()}>Edit rules</button>
                 <button onclick={() => goto("/settings")}>Settings</button>
                 <button onclick={() => goto("/dataDisplay")}>Data Display</button>
                 <button onclick={() => goto("/editorDisplay")}>Editor</button>
+
             </div>
         </div>
     </div>

@@ -1,45 +1,33 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod commands;
-mod os_utils;
 mod db;
+mod os_utils;
 
 use crate::commands::{
-    get_today_logs,
-    get_logs_delta,
-    get_unique_names,
-    manual_cleanup,
-    set_logging,
-    check_access,
-    fetch_load_steam_game_data,
-    load_app_dictionary,
-    get_stats_in_range,
-    add_recognition_rule,
-    get_daily_breakdown,
-    find_window_titles,
-    find_pattern_matches
+    add_recognition_rule, check_access, fetch_load_steam_game_data, fetch_steam_game_data,
+    find_pattern_matches, find_window_titles, get_daily_breakdown, get_logs_delta,
+    get_stats_in_range, get_steam_name, get_today_logs, get_unique_names, load_app_dictionary,
+    manual_cleanup, set_logging,
 };
-use crate::db::{init_db};
-use os_utils::{
-    get_process_info,
-    get_process_info_
+use crate::db::{fetch_steam_app_list, init_db, set_steam_app_table};
+use os_utils::{get_process_info, get_process_info_};
+use tauri::{
+    menu::{Menu, MenuEvent, MenuItem},
+    tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager, RunEvent, WindowEvent,
 };
 use tokio::time::{sleep, Duration};
-use tauri::{
-    menu::{Menu, MenuItem, MenuEvent},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent, TrayIcon},
-    Manager, RunEvent, WindowEvent, AppHandle
-};
 
 fn menu_event(app: &AppHandle, event: MenuEvent) {
-    match event.id.as_ref() { 
+    match event.id.as_ref() {
         "quit" => app.exit(0),
         "show" => {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
             }
-        },
+        }
         _ => {}
     }
 }
@@ -48,7 +36,8 @@ fn tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
     if let TrayIconEvent::Click {
         button: MouseButton::Left,
         ..
-    } = event {
+    } = event
+    {
         let app = tray.app_handle();
         if let Some(window) = app.get_webview_window("main") {
             if window.is_visible().unwrap_or(false) {
@@ -63,6 +52,8 @@ fn tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -80,6 +71,17 @@ fn main() {
 
             tauri::async_runtime::spawn(async move {
                 init_db().await;
+
+                //TODO add need_update flag (maybe timestamp)
+
+                match fetch_steam_app_list().await {
+                    Ok(games) => {
+                        if let Err(e) = set_steam_app_table(games).await {
+                            println!("Failed to set steam app table: {}", e);
+                        }
+                    }
+                    Err(e) => println!("Failed to set steam app table: {}", e),
+                }
 
                 loop {
                     // println!("- current allowLogging value: {}", check_access());
@@ -106,7 +108,9 @@ fn main() {
             add_recognition_rule,
             get_daily_breakdown,
             find_window_titles,
-            find_pattern_matches
+            find_pattern_matches,
+            get_steam_name,
+            fetch_steam_game_data
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
@@ -114,7 +118,7 @@ fn main() {
             match event {
                 RunEvent::WindowEvent {
                     label,
-                    event: WindowEvent::CloseRequested {api, ..},
+                    event: WindowEvent::CloseRequested { api, .. },
                     ..
                 } => {
                     if label == "main" {
@@ -125,7 +129,7 @@ fn main() {
                             let _ = window.hide();
                         }
                     }
-                },
+                }
                 /*RunEvent::ExitRequested { api, .. } => {
                     api.prevent_exit();
 

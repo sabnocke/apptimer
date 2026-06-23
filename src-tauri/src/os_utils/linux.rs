@@ -91,7 +91,8 @@ pub async fn get_process_info_(handle: &AppHandle) {
         if **last_name != window.process_name || **last_title != window.title {
             println!(
                 "Switch! {} -> {} | UTC: {}, Local: {}",
-                last_name, window.process_name,
+                last_name,
+                window.process_name,
                 Utc::now(),
                 Local::now()
             );
@@ -99,8 +100,8 @@ pub async fn get_process_info_(handle: &AppHandle) {
             match log_switch_refresh(&window.process_name, &window.title).await {
                 Ok(_b) => {
                     _ = handle.emit("refresh-source", ());
-                },
-                Err(e) => println!("Error: {}", e)
+                }
+                Err(e) => println!("Error: {}", e),
             }
 
             LAST_NAME.store(Arc::new(window.process_name));
