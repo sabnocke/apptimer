@@ -60,3 +60,9 @@
     - seems to be related to `uniqueNames_`
 - [BUG]: `[Error] Unhandled Promise Rejection: window.close not allowed.` Permissions associated with this command: `core:window:allow-close`
   (@tauri-apps_api_window.js:1819)
+
+Error Found version mismatched Tauri packages. Make sure the NPM package and Rust crate versions are on the same major/minor releases:
+tauri (v2.11.3) : @tauri-apps/api (v2.9.1)
+tauri-plugin-sql (v2.4.0) : @tauri-apps/plugin-sql (v2.3.1)
+tauri-plugin-fs (v2.5.1) : @tauri-apps/plugin-fs (v2.4.4)
+  
