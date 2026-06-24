@@ -3,19 +3,20 @@
     import {stringToColor, type ChartDay, type DailyAppStat, settings, group} from "$lib/services";
     import {resolver} from "$lib/services";
 
-    let {start, end} = $props<{start: Date, end: Date}>();
+    let {start, end} = $props<{ start: Date, end: Date }>();
 
     let chartData: ChartDay[] = $state([]);
     let displayData: Row[] = $state([]);
     let maxDailyTotal = $state(1);
 
     let hoveredDay: Row | null = $state(null);
-    let mousePos = $state({ x: 0, y: 0});
+    let mousePos = $state({x: 0, y: 0});
 
     interface DisplayData extends DailyAppStat {
         uid: string;
         percent: number;
     }
+
     interface Row {
         total: number;
         day: string;
@@ -26,12 +27,15 @@
         hoveredDay = d;
         updateMouse(e);
     }
+
     function onMove(e: MouseEvent) {
         updateMouse(e);
     }
+
     function onLeave(e: MouseEvent) {
         hoveredDay = null;
     }
+
     function updateMouse(e: MouseEvent) {
         mousePos = {
             x: e.clientX + 15,
@@ -51,8 +55,11 @@
             })
         );
 
-        if (!settings.show_unknown)
-            fin = fin.filter(item => item.final_name !== "UNKNOWN" || item.process_key !== "UNKNOWN");
+        if (!settings.show_unknown) {
+            fin = fin
+                .filter(item => item.final_name !== "UNKNOWN")
+                .filter(item => item.process_key !== "UNKNOWN");
+        }
 
         if (!settings.show_group)
             fin = fin.filter(
@@ -63,7 +70,7 @@
                 }
             );
 
-        return fin;
+        return fin.filter(item => item.final_name.toLowerCase() !== "apptimer");
     }
 
     async function loadData() {
@@ -109,8 +116,8 @@
         weekday: "long",
     });
 
-    function fitScreen(node: HTMLElement, {x, y}: {x: number, y: number}) {
-        function update(pos: {x: number, y: number}) {
+    function fitScreen(node: HTMLElement, {x, y}: { x: number, y: number }) {
+        function update(pos: { x: number, y: number }) {
             const rect = node.getBoundingClientRect();
             const padding = 10; // space from edge of screen
 
@@ -128,6 +135,7 @@
             node.style.left = `${safeX}px`;
             node.style.top = `${safeY}px`;
         }
+
         update({x, y});
 
         return {
@@ -147,7 +155,7 @@
              onmouseleave={onLeave}
              role="group"
         >
-            <div>{row.day}</div>
+            <span class="no-select">{row.day}</span>
             {#each row.source as cell (cell.uid)}
                 {@const calibratedHeight = `${Math.max(minHeight * cell.percent, 2)}px`}
                 <div
@@ -177,47 +185,54 @@
 </div>
 
 <style lang="scss">
-    .chart-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      padding: 20px;
-      gap: 10px;
-      background-color: white;
-      border-top: 1px solid black;
-    }
+  .no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+  }
 
-    .one-bar {
-      display: flex;
-      flex-direction: column;
-    }
 
-    .tooltip-card {
-      position: fixed;
-      z-index: 1000;
-      background-color: whitesmoke;
-      border: 1px solid #454545;
-      padding: 10px;
-      border-radius: 6px;
-      pointer-events: none;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-      min-width: 150px;
-    }
+  .chart-container {
+    display: flex;
+    justify-content: end;
+    align-items: flex-end;
+    padding: 20px;
+    gap: 1.5em;
+    background-color: white;
+    border-top: 1px solid black;
+  }
 
-    .row {
-      display: flex;
-      gap: 8px;
-      font-size: 0.85rem;
-    }
+  .one-bar {
+    display: flex;
+    flex-direction: column;
+  }
 
-    .right {
-      margin-left: auto;
-      color: #aaa;
-    }
+  .tooltip-card {
+    position: fixed;
+    z-index: 1000;
+    background-color: whitesmoke;
+    border: 1px solid #454545;
+    padding: 10px;
+    border-radius: 6px;
+    pointer-events: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    min-width: 150px;
+  }
 
-    .divider {
-      height: 1px;
-      background: #444;
-      margin: 5px 0;
-    }
+  .row {
+    display: flex;
+    gap: 8px;
+    font-size: 0.85rem;
+  }
+
+  .right {
+    margin-left: auto;
+    color: #aaa;
+  }
+
+  .divider {
+    height: 1px;
+    background: #444;
+    margin: 5px 0;
+  }
 </style>

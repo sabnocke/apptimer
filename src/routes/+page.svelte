@@ -1,7 +1,6 @@
 <script lang="ts">
     import {dataSource} from "$lib/services/dataProvider.svelte";
     import {SimpleDuration} from "$lib/types";
-    import RadioButtons from "$lib/components/RadioButtons.svelte";
     import {goto} from "$app/navigation";
     import SwitchButton from "$lib/components/SwitchButton.svelte";
     import {setLogging} from "$lib/services";
@@ -25,23 +24,6 @@
 
     let allowLogging: boolean = $state(true);
     let isBusy: boolean = $state(false);
-
-    /*async function testPause(): Promise<void> {
-        if (isBusy) return;
-
-        isBusy = true;
-
-        try {
-            const targetState = !allowLogging;
-            console.log(`${allowLogging} -> ${targetState}`);
-
-            allowLogging = targetState;
-        } catch (e) {
-            console.error(e);
-        } finally {
-            isBusy = false
-        }
-    }*/
 
     async function pause(): Promise<void> {
         if (isBusy) {
@@ -104,8 +86,6 @@
                 <button onclick={() => namingEngine.openConfigInDefaultEditor().then()}>Edit rules</button>
                 <button onclick={() => goto("/settings")}>Settings</button>
                 <button onclick={() => goto("/dataDisplay")}>Data Display</button>
-                <button onclick={() => goto("/editorDisplay")}>Editor</button>
-
             </div>
         </div>
     </div>
@@ -150,43 +130,15 @@
     justify-content: space-between;
   }
 
-  /*.flex-item {
-    display: block;
-    width: 80%;
-
-    !*&:nth-child(1) {
-      padding-left: 1rem;
-      flex: 1 0 50%;
-    }*!
-
-    !*&:nth-child(2), &:nth-child(4) {
-      flex: 1 1 auto;
-    }
-
-    &:nth-child(3) {
-      padding-left: 0.25rem;
-      padding-right: 0.25rem;
-      flex: 0 1 auto;
-    }*!
-  }*/
-
   .flex-container {
     display: flex;
   }
 
   .grid-container {
-    //display: grid;
-    /*grid-template-rows: 1fr;
-    grid-template-columns: 1fr 50% 1fr;
-    gap: 0;
-    width: 100%;
-*/
     .grid-item-1 {
       background-color: rgba(37, 177, 196, 0.5);
-      // align-self: start;
       display: flex;
       align-items: center;
-      // flex-direction: column;
       justify-content: space-evenly;
     }
     .grid-item-3 {

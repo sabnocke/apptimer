@@ -1,12 +1,6 @@
-import {dataSource} from "$lib/services/dataProvider.svelte";
 import type {DailyAppStat} from "$lib/services/chartUtils";
 
-export function parsedDataCreator2() {
-    return dataSource
-        .uniqueNames()
-}
-
-export function selectiveSubscribe(date: Date, print: boolean = true): (() => void) {
+/*export function selectiveSubscribe(date: Date, print: boolean = true): (() => void) {
     console.log("selectiveSubscribe's date: ", date);
     const isToday: boolean = date.toDateString() === new Date().toDateString();
     if (isToday) {
@@ -16,7 +10,7 @@ export function selectiveSubscribe(date: Date, print: boolean = true): (() => vo
         if (print) console.log("📅 Viewing Past: Real-time updates disabled.");
         return () => null;
     }
-}
+}*/
 
 export const formatter = Intl.DateTimeFormat("cs-CZ", {
     hour: "2-digit",
@@ -42,7 +36,6 @@ export const timeFormatter = Intl.DateTimeFormat("cs-CZ", {
 });
 
 export function* zip<A, B>(one: ArrayLike<A>, two: ArrayLike<B> | B): Generator<[A, B], void, unknown> {
-
     const isCollection: boolean =
         two != null &&
         typeof (two as any).length === "number" &&
@@ -75,7 +68,7 @@ export function split<T>(src: T[], predicate: (value: T, index: number, array: T
     return [pass, fail];
 }
 
-export function reduce_if<T>(
+function reduce_if<T>(
     source: T[],
     predicate: (value: T, index: number, array: T[]) => boolean,
     reducer: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T,
@@ -109,4 +102,8 @@ export function group(src: DailyAppStat[]): DailyAppStat[] {
     const fin = src.filter(item => item.final_name != "Idle/System");
 
     return [...fin, result];
+}
+
+export function capitalize(word: string): string {
+    return word.charAt(0).toUpperCase() + word.slice(1);
 }

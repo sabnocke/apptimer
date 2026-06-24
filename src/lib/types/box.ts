@@ -1,20 +1,8 @@
-import type {AsyncBox} from "$lib/types/abox";
-
-type Identity<T> = (v: T) => T;
 type UnpackIterable<T> = T extends Iterable<infer U> ? U : T;
 
 export class Box<Ok, Else> {
-    // private getVal: Identity<Ok> | null = null;
     private val: Ok | Else
     private isOk_: boolean = false;
-
-    get isOk(): boolean {
-        return this.isOk_;
-    }
-
-    get hasContent(): boolean {
-        return this.isOk_ && !!this.val;
-    }
 
     private constructor(
         v: Ok | Else,
@@ -31,10 +19,6 @@ export class Box<Ok, Else> {
     get isInElse(): boolean {
         return !this.isOk_;
     }
-
-    /*static of<Ok>(val: Ok): Box<Ok, any> {
-        return new Box(() => val, null);
-    }*/
 
     static fromBox<T, E>(b: Box<T, E>): Box<T, E> {
         return new Box<T, E>(b.val, b.isOk_);
@@ -57,10 +41,6 @@ export class Box<Ok, Else> {
         if (b.isOk) return Box.ok(b.val as T);
         return Box.error(b.val as E);
     }
-
-    /*static lazy<Ok, Else = any>(): Box<Ok, Else> {
-        return new Box<Ok, Else>((v: Ok) => v, null);
-    }*/
 
     unwrapOr(fallback: Ok): Ok {
         if (this.isInOk) return this.val as Ok;
@@ -137,12 +117,6 @@ export class Box<Ok, Else> {
     ): R {
         return this.isInOk ? onOk(this.val as Ok) : onErr(this.val as Else);
     }
-
-    /*foldLeft<R>(
-        onOk: (val: Ok) => R,
-    ) : R {
-        return this.isOk ? onOk(this.val as Ok) : this.val as Else;
-    }*/
 
     mapLeft<O>(fn: (val: Ok) => O): Box<O, Else> {
         if (this.isInOk)

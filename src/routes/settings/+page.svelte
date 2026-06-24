@@ -10,8 +10,9 @@
         settings.show_unknown = show_unknown;
         settings.show_group = show_group;
         settings.show_group_option = show_group_option;
-
+        // console.log(settings)
         settings.invalidate();
+
     });
 
 </script>

@@ -1,15 +1,7 @@
 <script lang="ts">
     import {goto} from "$app/navigation";
     import {dataSource} from "$lib/services";
-    import {
-        getStatsInRange,
-    } from "$lib/services";
-
     import {getDailyBreakdown} from "$lib/services/ipc";
-
-    function fullClear(): void {
-        console.clear();
-    }
 
     let end = new Date();
     let temp = new Date();
@@ -26,17 +18,13 @@
 
 <div class="container">
     <div class="sidebar-base">
-        <button class="some-btn" onclick={() => console.log(dataSource.uniqueNames())}>Fully resolved names</button>
         <button class="some-btn" onclick={() => console.log($state.snapshot(dataSource.data))}>Entry data</button>
         <button class="some-btn" onclick={() => console.log(dataSource)}>Show error</button>
-        <button class="some-btn" onclick={() => console.log(getStatsInRange("2026-01-23", "2026-01-30"))}>
-            Test getStatsInRange for 23-01-2026 -- 30-01-2026
-        </button>
         <button class="some-btn" onclick={() => wrap_getDailyBreakdown(start, end)}>
             getDailyBreakdown
         </button>
         <div></div>
-        <button class="some-btn" onclick={fullClear}>Clear</button>
+        <button class="some-btn" onclick={console.clear}>Clear</button>
         <button class="some-btn" onclick={() => goto("/")}>Back</button>
     </div>
     <div class="display-area"></div>

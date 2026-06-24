@@ -1,31 +1,31 @@
 import {invoke} from "@tauri-apps/api/core";
-import type {LogEntry} from "$lib/services/dataProvider.svelte";
-import type {AppDictionary, AppStats} from "$lib/types";
+/*import type {LogEntry} from "$lib/services/dataProvider.svelte";
+import type {AppDictionary, AppStats} from "$lib/types";*/
 import type {DailyAppStat} from "$lib/services/chartUtils";
-import {Box} from "$lib/types";
+// import {Box} from "$lib/types";
 
-export function getTodayLogs() {
+/*export function getTodayLogs() {
     //! maybe deprecated
     return invoke<LogEntry<string>[]>("get_today_logs");
-}
+}*/
 
-export function getDayLogs(date: Date | null = null) {
+/*export function getDayLogs(date: Date | null = null) {
     return invoke<LogEntry<string>[]>("get_logs_delta", {
         now: date ?? new Date()
     });
-}
+}*/
 
-export function getUniqueNames(date: Date | null = null) {
+/*export function getUniqueNames(date: Date | null = null) {
     return invoke<string[]>("get_unique_names", {
         when: date
     });
-}
+}*/
 
 export function setLogging(enable: boolean): Promise<boolean> {
     return invoke<boolean>("set_logging", {enable: enable});
 }
 
-export function checkAccess(): Promise<boolean> {
+/*export function checkAccess(): Promise<boolean> {
     return invoke<boolean>("check_access");
 }
 
@@ -56,9 +56,9 @@ export function getStatsInRange(start: Date | string, end?: Date | string): Prom
 }
 
 export function addRecognitionRule(process: string, pattern: string, displayName: string): Promise<boolean> {
-    /**
+    /!**
      * Adds a new display name for process given a window title pattern
-     */
+     *!/
     try {
         return invoke<boolean>("add_recognition_rule", {
             process: process,
@@ -69,7 +69,7 @@ export function addRecognitionRule(process: string, pattern: string, displayName
         console.error("Failed to save a rule", e);
         return Promise.resolve(false);
     }
-}
+}*/
 
 export function getDailyBreakdown(startDate: Date | string, endDate: Date | string): Promise<DailyAppStat[]> {
     const formatDate = (d: Date | string) =>
@@ -84,6 +84,7 @@ export function getDailyBreakdown(startDate: Date | string, endDate: Date | stri
     });
 }
 
+/*
 export function findWindowTitles(process_name: string): Box<Promise<string[]>, unknown> {
     try {
         return Box.ok(invoke<string[]>("find_window_titles", {processName: process_name}));
@@ -104,4 +105,4 @@ export function findPatternMatches(
     } catch (e) {
         return Box.error(e);
     }
-}
+}*/

@@ -25,15 +25,17 @@
 - [x] Figure out a different way of visualizing the data
 - [x] Add [stacked bar chart](https://www.chartjs.org/docs/latest/samples/bar/stacked.html)
 - [ ] Overhaul UI/UX to a more unified vision
+- [ ] Make stacked bars closer to each other (and place them to the right)
+- [ ] Change how past viewing work
+  - Maybe entirely different visualization?
 
 ## Name resolving
 
 - [X] Add steam name resolver
   - There is something, but does it work?
 - [x] Figure out name resolving of PWA
-  - Seems to be issue on Vivaldi and any PWA
   - `Vivaldi-bobcidbgoopfnikbbgihiiihapdmbplc-Def` >> `Notion`
-- [ ] Add ability to add resolver rules from frontend
+- [X] Add ability to add resolver rules from frontend
   - `config.yaml` solves resolver rules issue
 
 ## Clean-up
@@ -42,6 +44,33 @@
 - [ ] Remove unnecessary `console.log` in ts code
 - [ ] Remove deprecated code
 - [ ] Remove unused packages (mostly in node_modules / bun)
+- [ ] Remove unused IPC calls
+  - `getTodayLogs`
+  - `getDayLogs`
+  - `checkAccess`
+  - `getSteamGameName`
+  - `fetchSteamGameData`
+  - `loadAppDictionary`
+  - `updateDisplayName`
+  - `getStatsInRange`
+  - `addRecognitionRule`
+  - `getDailyBreakdown`
+  - `findWindowTitles`
+  - `findPatternMatches`
+- [ ] With IPC calls removed, also remove unused db tables
+- [ ] Remove `dataDisplay/` route
+
+## QOL
+- [ ] Add documentation strings
+  - [ ] engine.svelte.ts
+  - [ ] interfaces.ts
+  - [ ] chartUtils.ts
+  - [ ] dataProvider.svelte.ts
+  - [ ] ipc.ts
+  - [ ] nameResolver.svelte.ts
+  - [ ] selectedDate.svelte.ts
+  - [ ] settings.svelte.ts
+  - [ ] utils.ts
 
 # BUGS
 
@@ -61,8 +90,8 @@
 - [BUG]: `[Error] Unhandled Promise Rejection: window.close not allowed.` Permissions associated with this command: `core:window:allow-close`
   (@tauri-apps_api_window.js:1819)
 
-Error Found version mismatched Tauri packages. Make sure the NPM package and Rust crate versions are on the same major/minor releases:
-tauri (v2.11.3) : @tauri-apps/api (v2.9.1)
-tauri-plugin-sql (v2.4.0) : @tauri-apps/plugin-sql (v2.3.1)
-tauri-plugin-fs (v2.5.1) : @tauri-apps/plugin-fs (v2.4.4)
+- [BUG]: Error Found version mismatched Tauri packages. Make sure the NPM package and Rust crate versions are on the same major/minor releases:
+  - tauri (v2.11.3) : @tauri-apps/api (v2.9.1)
+  - tauri-plugin-sql (v2.4.0) : @tauri-apps/plugin-sql (v2.3.1)
+  - tauri-plugin-fs (v2.5.1) : @tauri-apps/plugin-fs (v2.4.4)
   

@@ -1,25 +1,9 @@
 export {resolver} from "./nameResolver.svelte";
 export {dataSource} from "./dataProvider.svelte";
+export {setLogging, getDailyBreakdown} from "./ipc"
 export {
-    getUniqueNames,
-    getDayLogs,
-    getTodayLogs,
-    setLogging,
-    checkAccess,
-    getSteamGameName,
-    loadAppDictionary,
-    updateDisplayName,
-    getStatsInRange,
-    getDailyBreakdown,
-    findWindowTitles,
-    findPatternMatches,
-    addRecognitionRule
-} from "./ipc"
-export {
-    parsedDataCreator2,
-    selectiveSubscribe,
     timeFormatter, formatter, dateFormatter,
-    zip, split, group, reduce_if
+    zip, split, group, capitalize
 } from "./utils";
 export {settings} from "./settings.svelte";
 
