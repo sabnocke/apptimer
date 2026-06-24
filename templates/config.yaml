@@ -1,0 +1,4 @@
+rules:
+  - name: "Example"
+    pattern: 'example.exe$'
+    replacement: "Example"
